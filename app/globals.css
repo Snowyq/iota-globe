@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@import "../styles/section.css";
+@import "../styles/typography.css";
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -117,13 +119,13 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground;
     }
-  html {
-    @apply font-mono;
+    html {
+        @apply font-mono;
     }
 }

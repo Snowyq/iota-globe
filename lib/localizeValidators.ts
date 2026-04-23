@@ -14,6 +14,7 @@ export type Geo = {
     lat: number;
     lon: number;
     timezone: string;
+    query: string;
 };
 
 export type LocalizedValidator = {
@@ -56,6 +57,7 @@ export async function getValidatorLocalization(
                                 regionName: geo.regionName,
                                 country: geo.country,
                                 countryCode: geo.countryCode,
+                                query: geo.query,
                             },
                         };
                     } catch {
