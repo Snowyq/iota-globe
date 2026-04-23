@@ -14,6 +14,40 @@ const datasets = {
     testnet: "https://rpc.ankr.com/iota_testnet",
 };
 
+type SystemState = Awaited<ReturnType<IotaClient["getLatestIotaSystemState"]>>;
+type ValidatorsApy = Awaited<ReturnType<IotaClient["getValidatorsApy"]>>;
+type ValidatorGeo = Awaited<ReturnType<typeof getValidatorLocalization>>;
+type EpochInfoEvent = Awaited<
+    ReturnType<IotaClient["queryEvents"]>
+>["data"][number];
+
+type Validator = SystemState["activeValidators"][number];
+
+type ApiSystemState = Omit<
+    SystemState,
+    "activeValidators" | "committeeMembers" | "atRiskValidators"
+> & {
+    activeValidators?: undefined;
+    committeeMembers?: undefined;
+    atRiskValidators?: undefined;
+};
+
+export type ValidatorResponseItem = {
+    iotaAddress: Validator["iotaAddress"];
+    apy: ValidatorsApy["apys"][number]["apy"] | null;
+    geo: ValidatorGeo[number]["geo"] | null;
+    isCommitteeMember: boolean;
+    payload: Omit<Validator, "iotaAddress"> & {
+        iotaAddress?: undefined;
+    };
+};
+
+export type IotaApiResponseData = {
+    systemState: ApiSystemState;
+    validators: ValidatorResponseItem[];
+    epochInfoEvents: EpochInfoEvent[];
+};
+
 export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const datasetParam = searchParams.get("dataset") ?? "testnet";
@@ -53,7 +87,17 @@ export async function GET(request: NextRequest) {
             ),
         ]);
 
-        const responseData = {
+        const apyByAddress = new Map(
+            validatorsApy.apys.map((item) => [item.address, item.apy])
+        );
+        const geoByAddress = new Map(
+            validatorsGeo.map((item) => [item.iotaAddress, item.geo])
+        );
+        const committeeMemberAddresses = new Set(
+            systemState.committeeMembers.map((member) => member.iotaAddress)
+        );
+
+        const responseData: IotaApiResponseData = {
             systemState: {
                 ...systemState,
                 activeValidators: undefined,
@@ -62,14 +106,11 @@ export async function GET(request: NextRequest) {
             },
             validators: systemState.activeValidators.map((validator) => ({
                 iotaAddress: validator.iotaAddress,
-                apy:
-                    validatorsApy.apys.find(
-                        (v) => v.address === validator.iotaAddress
-                    )?.apy ?? null,
-                geo:
-                    validatorsGeo.find(
-                        (v) => v.iotaAddress === validator.iotaAddress
-                    )?.geo ?? null,
+                apy: apyByAddress.get(validator.iotaAddress) ?? null,
+                geo: geoByAddress.get(validator.iotaAddress) ?? null,
+                isCommitteeMember: committeeMemberAddresses.has(
+                    validator.iotaAddress
+                ),
                 payload: {
                     ...validator,
                     iotaAddress: undefined,
@@ -78,11 +119,14 @@ export async function GET(request: NextRequest) {
             epochInfoEvents,
         };
 
-        return new Response(JSON.stringify(responseData), {
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+        return new Response(
+            JSON.stringify({ status: "success", payload: responseData }),
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            }
+        );
     } catch (error) {
         console.error("Error fetching data from IOTA client:", error);
         return new Response(
@@ -104,7 +148,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function getEpochInfoEvents(client: IotaClient, items: number) {
-    const allEvents = [];
+    const allEvents: EpochInfoEvent[] = [];
     let cursor = undefined;
     for (let i = 0; allEvents.length < items && i < 5; i++) {
         const page = await client.queryEvents({
