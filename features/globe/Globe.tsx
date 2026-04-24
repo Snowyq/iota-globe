@@ -7,8 +7,8 @@ import texture from "@/assets/Textures.jpg";
 import {
     ClusterMarker,
     type ValidatorCluster,
-} from "@/features/iota/ValidatorClusterMarker";
-import { ValidatorsContext } from "@/features/iota/ValidatorsContext";
+} from "./ClusterMarker";
+import { GlobeContext } from "@/features/globe/GlobeContext";
 import { cn } from "@/lib/utils";
 import {
     useCallback,
@@ -42,17 +42,12 @@ type GlobeArc = {
 type GlobeProps = {
     className?: string;
     onReady?: (methods: GlobeMethods) => void;
+
     variant?: "home" | "globe";
     ref?: React.RefObject<GlobeMethods | undefined>;
 };
 
-type ClusterPoint = {
-    id: string;
-    lat: number;
-    lng: number;
-    count: number;
-    validators: string[];
-} & ValidatorCluster;
+type ClusterPoint = ValidatorCluster;
 
 type RandomLocationDatum = { lat: string | number; lng: string | number };
 
@@ -94,7 +89,7 @@ export function Globe({
     ref: passedRef,
     variant,
 }: GlobeProps) {
-    const { validators } = useContext(ValidatorsContext);
+    const { onGlobeReady: notifyGlobeReady, geoPoints } = useContext(GlobeContext);
     const containerRef = useRef<HTMLDivElement>(null);
     const localGlobeRef = useRef<GlobeMethods | undefined>(undefined);
     const globeRef = passedRef || localGlobeRef;
@@ -105,21 +100,9 @@ export function Globe({
     }));
     const [clusterCellSize, setClusterCellSize] = useState(getCellSize(INITIAL_ALTITUDE));
 
-    const contextPointsData = useMemo<GlobePoint[]>(
-        () =>
-            validators
-                .filter((v) => v.geo)
-                .map((v) => ({
-                    lat: v.geo!.lat,
-                    lng: v.geo!.lon,
-                    iotaAddress: v.iotaAddress,
-                })),
-        [validators]
-    );
-
     const contextArcsData = useMemo(
-        () => buildStableArcs(contextPointsData, 3, ARC_MID_COLOR),
-        [contextPointsData]
+        () => buildStableArcs(geoPoints, 3, ARC_MID_COLOR),
+        [geoPoints]
     );
 
     const globeMaterial = useMemo(
@@ -161,11 +144,11 @@ export function Globe({
     }, []);
 
     const clusteredPoints = useMemo<ClusterPoint[]>(() => {
-        if (contextPointsData.length === 0) return [];
+        if (geoPoints.length === 0) return [];
 
         const buckets = new Map<string, GlobePoint[]>();
 
-        contextPointsData.forEach((point) => {
+        geoPoints.forEach((point) => {
             const latBucket =
                 Math.round(point.lat / clusterCellSize) * clusterCellSize;
             const lngBucket =
@@ -188,7 +171,7 @@ export function Globe({
                 validators,
             };
         });
-    }, [contextPointsData, clusterCellSize]);
+    }, [geoPoints, clusterCellSize]);
 
     const clusterContainersRef = useRef(new Map<string, HTMLElement>());
     const [clusterPortals, setClusterPortals] = useState<
@@ -319,7 +302,10 @@ export function Globe({
                 arcDashGap={2}
                 arcDashAnimateTime="time"
                 onGlobeReady={() => {
-                    if (globeRef.current) onReady?.(globeRef.current);
+                    if (globeRef.current) {
+                        onReady?.(globeRef.current);
+                        notifyGlobeReady(globeRef.current);
+                    }
 
                     const controls = globeRef.current?.controls();
                     if (!controls) return;

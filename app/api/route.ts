@@ -12,7 +12,6 @@ const TTL_GEO = 24 * 60 * 60_000;
 const datasets = {
     mainnet: "https://rpc.ankr.com/iota_mainnet",
     testnet: "https://rpc.ankr.com/iota_testnet",
-    devnet: "https://rpc.ankr.com/iota_devnet",
 };
 
 type SystemState = Awaited<ReturnType<IotaClient["getLatestIotaSystemState"]>>;
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest) {
             cachedFetch(`validatorsGeo:${datasetParam}`, TTL_GEO, () =>
                 getValidatorLocalization(systemState.activeValidators)
             ),
-            cachedFetch(`epochInfoEvents:${datasetParam}`, TTL_GEO, () =>
+            cachedFetch(`epochInfoEvents:${datasetParam}`, TTL_CHAIN, () =>
                 getEpochInfoEvents(
                     iotaClient,
                     systemState.activeValidators.length
@@ -159,9 +158,6 @@ async function getEpochInfoEvents(client: IotaClient, items: number) {
             cursor,
         });
         allEvents.push(...page.data);
-        console.log(
-            `Fetched page ${i + 1}, events so far: ${allEvents.length}`
-        );
         if (!page.hasNextPage) break;
         cursor = page.nextCursor ?? undefined;
     }
