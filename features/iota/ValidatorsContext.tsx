@@ -1,6 +1,6 @@
 "use client";
 
-import { ValidatorResponseItem } from "@/app/api/route";
+import { IotaApiResponseData, ValidatorResponseItem } from "@/app/api/route";
 import { fetchIota } from "@/lib/fetchIota";
 import {
     createContext,
@@ -13,22 +13,26 @@ import {
 } from "react";
 import { OptionsContext } from "../options/OptionsContext";
 
-export type ValidatorStats = {
-    stakeIOTA: number;
-    stakePercent: number;
-    apyPercent: number | null;
-    lastEpochRewardIOTA: number | null;
-};
-
-interface ValidatorsContext {
-    validators: ValidatorResponseItem[];
-    selectValidator?: (iotaAddress: string) => void;
-    deselectValidator?: () => void;
-    selectedValidator?: ValidatorResponseItem | null;
+export interface Validator extends ValidatorResponseItem {
+    stats: {
+        stakeIOTA: number;
+        stakePercent: number;
+        apyPercent: number | null;
+        lastEpochRewardIOTA: number | null;
+    };
 }
 
-export const ValidatorsContext = createContext<ValidatorsContext>({
+interface ValidatorsContextValue {
+    validators: Validator[];
+    isLoading: boolean;
+    selectValidator?: (iotaAddress: string) => void;
+    deselectValidator?: () => void;
+    selectedValidator?: Validator | null;
+}
+
+export const ValidatorsContext = createContext<ValidatorsContextValue>({
     validators: [],
+    isLoading: true,
     selectedValidator: null,
     selectValidator: () => {},
     deselectValidator: () => {},
@@ -40,21 +44,19 @@ export default function ValidatorsContextProvider({
     children: React.ReactNode;
 }) {
     const { network } = useContext(OptionsContext);
-    const [validators, setValidators] = useState<ValidatorResponseItem[]>([]);
+    const [validators, setValidators] = useState<Validator[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedValidator, setSelectedValidator] =
-        useState<ValidatorResponseItem | null>(null);
+        useState<Validator | null>(null);
 
     const validatorsSignatureRef = useRef("");
 
     const selectValidator = useCallback(
         (iotaAddress: string) => {
-            console.log("Selecting validator with IOTA address:", iotaAddress);
-
             const validator = validators.find(
                 (v) => v.iotaAddress === iotaAddress
             );
             setSelectedValidator(validator ?? null);
-            console.log("Selected validator:", validator);
         },
         [validators]
     );
@@ -64,41 +66,55 @@ export default function ValidatorsContextProvider({
     }, []);
 
     useEffect(() => {
-        // only triggered when network changes, reset validators to show loading state
-        // eslint-disable-next-line
         setValidators([]);
+        setIsLoading(true);
         validatorsSignatureRef.current = "";
+
+        let firstLoad = true;
 
         const load = async () => {
             try {
                 const info = await fetchIota(network);
-                const nextSignature = buildValidatorsSignature(info.validators);
+                console.log("Fetched IOTA data:", info);
+                // const nextSignature = buildValidatorsSignature(info.validators);
 
-                if (validatorsSignatureRef.current === nextSignature) {
-                    return;
-                }
+                // if (validatorsSignatureRef.current === nextSignature) return;
 
-                validatorsSignatureRef.current = nextSignature;
-                setValidators(info.validators);
+                // validatorsSignatureRef.current = nextSignature;
+                console.log("Updating validators state with new data");
+                setValidators(
+                    info.validators.map((v) => computeStats(v, info))
+                );
             } catch (error) {
                 console.error("Failed to refresh validators:", error);
+            } finally {
+                if (firstLoad) {
+                    setIsLoading(false);
+                    firstLoad = false;
+                }
             }
         };
 
         load();
         const interval = setInterval(load, 5000);
-
         return () => clearInterval(interval);
     }, [network]);
 
     const contextValue = useMemo(
         () => ({
             validators,
+            isLoading,
             selectValidator,
             deselectValidator,
             selectedValidator,
         }),
-        [validators, selectValidator, deselectValidator, selectedValidator]
+        [
+            validators,
+            isLoading,
+            selectValidator,
+            deselectValidator,
+            selectedValidator,
+        ]
     );
 
     return (
@@ -108,28 +124,41 @@ export default function ValidatorsContextProvider({
     );
 }
 
-// function computeValidatorStats(v: ValidatorResponseItem): ValidatorWithStats {
-//     return {
-//         ...v,
-//         stakeIOTA:
-//             Number(v.payload.stakingPoolIotaBalance) / 1_000_000_000_000_000,
-//         stakePercent: Number(v.payload.votingPower) / 100,
-//         apyPercent: v.apy != null ? v.apy * 100 : null,
-//         lastEpochRewardIOTA:
-//             v.lastEpochReward != null
-//                 ? Number(v.lastEpochReward) / 1_000_000_000_000
-//                 : null,
-//     };
-// }
+type EpochEventParsed = {
+    epoch: string;
+    validator_address: string;
+    pool_staking_reward: string;
+};
+
+function computeStats(
+    v: ValidatorResponseItem,
+    info: IotaApiResponseData
+): Validator {
+    // Events are descending — first match is the most recent epoch's reward
+    const reward = info.epochInfoEvents
+        .map((e) => e.parsedJson as EpochEventParsed)
+        .find((p) => p.validator_address === v.iotaAddress);
+
+    return {
+        ...v,
+        stats: {
+            stakeIOTA:
+                Number(v.payload.stakingPoolIotaBalance) /
+                1_000_000_000_000_000,
+            stakePercent: Number(v.payload.votingPower) / 100,
+            apyPercent: v.apy != null ? v.apy * 100 : null,
+            lastEpochRewardIOTA: reward
+                ? Number(reward.pool_staking_reward) / 1_000_000_000_000
+                : null,
+        },
+    };
+}
 
 function buildValidatorsSignature(validators: ValidatorResponseItem[]) {
     return validators
-        .map((validator) => {
-            const geo = validator.geo
-                ? `${validator.geo.lat}:${validator.geo.lon}`
-                : "none";
-
-            return `${validator.payload.netAddress}|${validator.geo?.query ?? "none"}|${geo}`;
+        .map((v) => {
+            const geo = v.geo ? `${v.geo.lat}:${v.geo.lon}` : "none";
+            return `${v.payload.netAddress}|${v.geo?.query ?? "none"}|${geo}`;
         })
         .sort()
         .join(";");

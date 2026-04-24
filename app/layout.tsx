@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Lora } from "next/font/google";
 
 import Navigation from "@/components/Navigation";
 import { ThemeProvider } from "@/components/theme-provider";
+import GlobeContextProvider from "@/features/globe/GlobeContext";
 import ValidatorsContextProvider from "@/features/iota/ValidatorsContext";
 import OptionsContextProvider from "@/features/options/OptionsContext";
 import { cn } from "@/lib/utils";
@@ -36,10 +37,12 @@ export default function RootLayout({
             <body>
                 <OptionsContextProvider>
                     <ValidatorsContextProvider>
-                        <ThemeProvider>
-                            <Navigation />
-                            <>{children}</>
-                        </ThemeProvider>
+                        <GlobeContextProvider>
+                            <ThemeProvider>
+                                <Navigation />
+                                <>{children}</>
+                            </ThemeProvider>
+                        </GlobeContextProvider>
                     </ValidatorsContextProvider>
                 </OptionsContextProvider>
             </body>
