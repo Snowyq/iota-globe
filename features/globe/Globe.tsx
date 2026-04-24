@@ -4,10 +4,6 @@ import earthDarkTexture from "@/assets/earth-dark.jpg";
 import landTopology from "@/assets/land_10m.json";
 import randomLocations from "@/assets/random-locations.json";
 import texture from "@/assets/Textures.jpg";
-import {
-    ClusterMarker,
-    type ValidatorCluster,
-} from "./ClusterMarker";
 import { GlobeContext } from "@/features/globe/GlobeContext";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +19,7 @@ import { createPortal } from "react-dom";
 import GlobeGL, { type GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import * as topojson from "topojson-client";
+import { ClusterMarker, type ValidatorCluster } from "./ClusterMarker";
 
 type GlobePoint = {
     lat: number;
@@ -66,12 +63,10 @@ const INITIAL_ALTITUDE = 3;
 const CLUSTER_BUBBLE_ALTITUDE = 0.06;
 const ARC_ANIMATE_TIME_MIN = 300;
 const ARC_ANIMATE_TIME_MAX = 800;
-const ARC_MID_COLOR = "#fff";
+const ARC_MID_COLOR = "#faf7e6";
 const CUSTOM_LAYER_DATA = createCustomLayerData(
     randomLocations as RandomLocationDatum[]
 );
-const CUSTOM_LAYER_DATA_NO_BACKGROUND_STARS: CustomLayerDatum[] =
-    CUSTOM_LAYER_DATA.filter((d) => d.kind !== "star" || d.altitude < 1);
 const LAND_FEATURES = (
     topojson.feature(
         landTopology as unknown as Parameters<typeof topojson.feature>[0],
@@ -89,7 +84,8 @@ export function Globe({
     ref: passedRef,
     variant,
 }: GlobeProps) {
-    const { onGlobeReady: notifyGlobeReady, geoPoints } = useContext(GlobeContext);
+    const { onGlobeReady: notifyGlobeReady, geoPoints } =
+        useContext(GlobeContext);
     const containerRef = useRef<HTMLDivElement>(null);
     const localGlobeRef = useRef<GlobeMethods | undefined>(undefined);
     const globeRef = passedRef || localGlobeRef;
@@ -98,7 +94,10 @@ export function Globe({
         width: typeof window !== "undefined" ? window.innerWidth : 1,
         height: typeof window !== "undefined" ? window.innerHeight : 1,
     }));
-    const [clusterCellSize, setClusterCellSize] = useState(getCellSize(INITIAL_ALTITUDE));
+
+    const [clusterCellSize, setClusterCellSize] = useState(
+        getCellSize(INITIAL_ALTITUDE)
+    );
 
     const contextArcsData = useMemo(
         () => buildStableArcs(geoPoints, 3, ARC_MID_COLOR),
@@ -109,7 +108,7 @@ export function Globe({
         () =>
             new THREE.MeshPhongMaterial({
                 color: "#1a0a3d",
-                opacity: 0.95,
+                opacity: 0.9,
                 transparent: true,
             }),
         []
@@ -124,8 +123,6 @@ export function Globe({
             }),
         []
     );
-
-    const handlePolygonSideColor = useCallback(() => "#00000000", []);
 
     useEffect(() => {
         const element = containerRef.current;
@@ -178,6 +175,17 @@ export function Globe({
         { id: string; cluster: ClusterPoint; container: HTMLElement }[]
     >([]);
 
+    const handleHtmlElement = useCallback((point: object) => {
+        const cluster = point as ClusterPoint;
+        if (!clusterContainersRef.current.has(cluster.id)) {
+            clusterContainersRef.current.set(
+                cluster.id,
+                document.createElement("div")
+            );
+        }
+        return clusterContainersRef.current.get(cluster.id)!;
+    }, []);
+
     useLayoutEffect(() => {
         const currentIds = new Set(clusteredPoints.map((c) => c.id));
         for (const id of [...clusterContainersRef.current.keys()]) {
@@ -200,16 +208,6 @@ export function Globe({
         );
     }, [clusteredPoints]);
 
-    const handleHtmlElement = useCallback((point: object) => {
-        const cluster = point as ClusterPoint;
-        return (
-            clusterContainersRef.current.get(cluster.id) ??
-            document.createElement("div")
-        );
-    }, []);
-
-    const handlePointColor = useCallback(() => "rgba(34,211,238,0.65)", []);
-
     const handleVisibilityModifier = useCallback(
         (element: HTMLElement, isVisible: boolean) => {
             element.style.opacity = isVisible ? "1" : "0";
@@ -231,12 +229,14 @@ export function Globe({
         (obj: THREE.Object3D, point: object) => {
             const datum = point as CustomLayerDatum;
             if (datum.kind !== "star") return;
-            const coords = globeRef.current?.getCoords(
-                datum.lat,
-                datum.lng,
-                datum.altitude
+            Object.assign(
+                obj.position,
+                globeRef.current?.getCoords(
+                    datum.lat,
+                    datum.lng,
+                    datum.altitude
+                )
             );
-            if (coords) obj.position.set(coords.x, coords.y, coords.z);
         },
         [globeRef]
     );
@@ -260,16 +260,10 @@ export function Globe({
                 polygonCapMaterial={
                     variant === "home" ? polygonCapMaterial : undefined
                 }
-                polygonSideColor={
-                    variant === "home" ? handlePolygonSideColor : undefined
-                }
+                polygonSideColor={variant === "home" ? () => "#00000000" : undefined}
                 polygonAltitude={variant === "home" ? 0.01 : undefined}
                 bumpImageUrl={undefined}
-                customLayerData={
-                    variant === "home"
-                        ? CUSTOM_LAYER_DATA_NO_BACKGROUND_STARS
-                        : CUSTOM_LAYER_DATA
-                }
+                customLayerData={CUSTOM_LAYER_DATA}
                 customThreeObject={handleCustomThreeObject}
                 customThreeObjectUpdate={handleCustomThreeObjectUpdate}
                 showAtmosphere={true}
@@ -284,16 +278,10 @@ export function Globe({
                 htmlTransitionDuration={0}
                 pointsData={clusteredPoints}
                 pointAltitude={CLUSTER_BUBBLE_ALTITUDE}
-                pointRadius={0.12}
-                pointColor={handlePointColor}
+                pointRadius={0.2}
+                pointColor={() => "rgba(34,211,238,0.65)"}
                 pointsMerge={true}
-                pointResolution={10}
-                ringsData={clusteredPoints}
-                ringAltitude={0.01}
-                ringMaxRadius={1}
-                ringPropagationSpeed={0.1}
-                ringRepeatPeriod={1000}
-                ringColor={"rgba(34,211,238,0.3)"}
+                pointResolution={5}
                 arcsData={contextArcsData}
                 arcColor="color"
                 arcAltitudeAutoScale={0.3}
@@ -394,11 +382,11 @@ function createCustomLayerData(
 
     const backgroundStars = Array.from({ length: 500 }, () => ({
         kind: "star" as const,
-        lat: (Math.random() - 0.5) * 180,
-        lng: (Math.random() - 0.5) * 360,
-        altitude: 1.5 + Math.random() * 2.5,
-        size: 0.3 + Math.random() * 0.5,
-        color: "#ffffff",
+        lat: (Math.random() - 1) * 360,
+        lng: (Math.random() - 1) * 360,
+        altitude: Math.random() * 2,
+        size: Math.random() * 0.4,
+        color: "#faadfd",
     }));
 
     return [{ kind: "mesh" }, ...surfaceStars, ...backgroundStars];
@@ -408,17 +396,8 @@ function randomInt(min: number, max: number) {
     return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
-function getCellSize(altitude: number) {
-    if (altitude > 2.8) return 18;
-    if (altitude > 2.2) return 15;
-    if (altitude > 1.7) return 10;
-    if (altitude > 1.3) return 10;
-    return 3;
-}
-
 function createGmonadsMesh() {
     const group = new THREE.Group();
-
     group.add(
         new THREE.Mesh(
             new THREE.SphereGeometry(100.3, 64, 64),
@@ -430,7 +409,6 @@ function createGmonadsMesh() {
             })
         )
     );
-
     group.add(
         new THREE.Mesh(
             new THREE.SphereGeometry(101.6, 48, 48),
@@ -443,6 +421,13 @@ function createGmonadsMesh() {
             })
         )
     );
-
     return group;
+}
+
+function getCellSize(altitude: number) {
+    if (altitude > 2.8) return 18;
+    if (altitude > 2.2) return 15;
+    if (altitude > 1.7) return 10;
+    if (altitude > 1.3) return 10;
+    return 3;
 }
