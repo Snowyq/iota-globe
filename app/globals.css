@@ -39,6 +39,8 @@
     --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
     --sidebar-border: oklch(0.922 0.005 325.62);
     --sidebar-ring: oklch(0.711 0.019 323.02);
+
+    --nav-height: 4rem;
 }
 
 .dark {
@@ -127,5 +129,11 @@
     }
     html {
         @apply font-mono;
+        scrollbar-gutter: stable;
+        overflow-y: scroll;
+    }
+    body[data-scroll-locked] {
+        padding-right: 0 !important;
+        margin-right: 0 !important;
     }
 }

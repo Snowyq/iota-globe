@@ -1,32 +1,48 @@
-import { Geist, Geist_Mono, Lora } from "next/font/google"
+import { Geist, Geist_Mono, Lora } from "next/font/google";
 
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import Navigation from "@/components/Navigation";
+import { ThemeProvider } from "@/components/theme-provider";
+import ValidatorsContextProvider from "@/features/iota/ValidatorsContext";
+import OptionsContextProvider from "@/features/options/OptionsContext";
 import { cn } from "@/lib/utils";
+import "./globals.css";
 
-const loraHeading = Lora({subsets:['latin'],variable:'--font-heading'});
+const loraHeading = Lora({ subsets: ["latin"], variable: "--font-heading" });
 
 const fontSans = Geist({
-  subsets: ["latin"],
-  variable: "--font-sans",
-})
+    subsets: ["latin"],
+    variable: "--font-sans",
+});
 
-const geistMono = Geist_Mono({subsets:['latin'],variable:'--font-mono'})
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export default function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode
+    children: React.ReactNode;
 }>) {
-  return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={cn("antialiased", fontSans.variable, "font-mono", geistMono.variable, loraHeading.variable)}
-    >
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
-  )
+    return (
+        <html
+            lang="en"
+            suppressHydrationWarning
+            className={cn(
+                "antialiased",
+                fontSans.variable,
+                "font-mono",
+                geistMono.variable,
+                loraHeading.variable
+            )}
+        >
+            <body>
+                <OptionsContextProvider>
+                    <ValidatorsContextProvider>
+                        <ThemeProvider>
+                            <Navigation />
+                            <>{children}</>
+                        </ThemeProvider>
+                    </ValidatorsContextProvider>
+                </OptionsContextProvider>
+            </body>
+        </html>
+    );
 }

@@ -3,7 +3,7 @@
 }
 
 @utility section {
-    @apply section-padding mx-auto flex w-full flex-col overflow-x-hidden max-sm:w-full sm:container;
+    @apply mx-auto flex w-full flex-col overflow-x-hidden section-padding max-sm:w-full sm:container sm:max-w-6xl;
 }
 
 @utility section-header {
@@ -19,5 +19,5 @@
 }
 
 @utility section-max-width {
-    @apply max-w-[1536px];
+    @apply max-w-6xl;
 }

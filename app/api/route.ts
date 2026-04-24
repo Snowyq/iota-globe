@@ -12,6 +12,7 @@ const TTL_GEO = 24 * 60 * 60_000;
 const datasets = {
     mainnet: "https://rpc.ankr.com/iota_mainnet",
     testnet: "https://rpc.ankr.com/iota_testnet",
+    devnet: "https://rpc.ankr.com/iota_devnet",
 };
 
 type SystemState = Awaited<ReturnType<IotaClient["getLatestIotaSystemState"]>>;
