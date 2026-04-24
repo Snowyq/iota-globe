@@ -30,7 +30,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
     return (
         <Badge
             variant={"secondary"}
-            className="relative items-center justify-center bg-card/50! px-2 backdrop-blur-md"
+            className="relative cursor-pointer items-center justify-center bg-card/50! px-2 backdrop-blur-md"
             onClick={handleClick}
         >
             {isSingle ? (
@@ -49,7 +49,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
                     </span>
                 </>
             ) : (
-                <div className="flex h-full w-full items-center justify-center">
+                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                     {cluster.count}
                 </div>
             )}
