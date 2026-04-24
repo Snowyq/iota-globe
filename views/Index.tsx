@@ -1,5 +1,6 @@
 import { GlobeNoSSR } from "@/features/globe/GlobeNoSSR";
 import { GlobeOptions } from "@/features/globe/GlobeOptions";
+import { SelectedValidator } from "@/features/iota/SelectedValidator";
 import { ValidatorsView } from "@/features/iota/ValidatorsView";
 
 export default function Index() {
@@ -12,6 +13,11 @@ export default function Index() {
                 <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--nav-height)+2rem)] flex justify-center">
                     <div className="relative w-full max-w-6xl">
                         <GlobeOptions className="pointer-events-auto absolute right-4 flex-col sm:right-5 xl:right-10" />
+                    </div>
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center">
+                    <div className="relative w-full max-w-6xl">
+                        <SelectedValidator className="absolute bottom-0 left-4 w-100 sm:left-5 xl:left-10" />
                     </div>
                 </div>
             </div>
