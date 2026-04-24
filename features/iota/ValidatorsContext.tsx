@@ -5,11 +5,13 @@ import { fetchIota } from "@/lib/fetchIota";
 import {
     createContext,
     useCallback,
+    useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
 } from "react";
+import { OptionsContext } from "../options/OptionsContext";
 
 export type ValidatorStats = {
     stakeIOTA: number;
@@ -37,6 +39,7 @@ export default function ValidatorsContextProvider({
 }: {
     children: React.ReactNode;
 }) {
+    const { network } = useContext(OptionsContext);
     const [validators, setValidators] = useState<ValidatorResponseItem[]>([]);
     const [selectedValidator, setSelectedValidator] =
         useState<ValidatorResponseItem | null>(null);
@@ -61,9 +64,14 @@ export default function ValidatorsContextProvider({
     }, []);
 
     useEffect(() => {
+        // only triggered when network changes, reset validators to show loading state
+        // eslint-disable-next-line
+        setValidators([]);
+        validatorsSignatureRef.current = "";
+
         const load = async () => {
             try {
-                const info = await fetchIota();
+                const info = await fetchIota(network);
                 const nextSignature = buildValidatorsSignature(info.validators);
 
                 if (validatorsSignatureRef.current === nextSignature) {
@@ -81,7 +89,7 @@ export default function ValidatorsContextProvider({
         const interval = setInterval(load, 5000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [network]);
 
     const contextValue = useMemo(
         () => ({

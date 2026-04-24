@@ -1,11 +1,11 @@
 import { IotaApiResponseData } from "@/app/api/route";
 
-export async function fetchIota(): Promise<IotaApiResponseData> {
+export async function fetchIota(network: string): Promise<IotaApiResponseData> {
     try {
-        const response = await fetch("/api/validators");
+        const response = await fetch(`/api?dataset=${network}`);
         const data = await response.json();
 
-        if (!data.success || !data.payload) {
+        if (data.status !== "success" || !data.payload) {
             throw new Error(data.error ?? "Failed to fetch validators");
         }
 
