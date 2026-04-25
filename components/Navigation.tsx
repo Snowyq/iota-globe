@@ -2,7 +2,15 @@
 
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { cn } from "@/lib/utils";
-import { ArrowLeftRight, Clock, Compass, Globe, Home, Menu, X } from "lucide-react";
+import {
+    ArrowLeftRight,
+    Clock,
+    Compass,
+    Globe,
+    Home,
+    Menu,
+    X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useContext, useState } from "react";
@@ -30,16 +38,20 @@ export default function Navigation() {
     const [open, setOpen] = useState(false);
 
     return (
-        <header className={cn(
-            "fixed inset-x-0 top-0 z-50 flex justify-center transition-[padding] duration-500 ease-in-out",
-            isFullscreen ? "pt-0" : "pt-2"
-        )}>
-            <nav className={cn(
-                "flex h-(--nav-height) w-full items-center gap-2 border border-border/50 bg-background/60 px-4 shadow-lg shadow-black/10 backdrop-blur-md transition-[max-width,border-radius] duration-500 ease-in-out sm:px-5 xl:px-10",
-                isFullscreen
-                    ? "max-w-full rounded-none"
-                    : "max-w-6xl rounded-full"
-            )}>
+        <header
+            className={cn(
+                "fixed inset-x-2 top-0 z-50 flex justify-center transition-[padding] duration-500 ease-in-out",
+                isFullscreen ? "pt-0" : "pt-2"
+            )}
+        >
+            <nav
+                className={cn(
+                    "flex h-(--nav-height) w-full items-center gap-2 border border-border/50 bg-background/60 px-4 shadow-lg shadow-black/10 backdrop-blur-md transition-[max-width,border-radius] duration-500 ease-in-out sm:px-5 xl:px-10",
+                    isFullscreen
+                        ? "max-w-full rounded-none"
+                        : "max-w-6xl rounded-full"
+                )}
+            >
                 <Link
                     href="/"
                     className="mr-2 shrink-0"
@@ -56,7 +68,7 @@ export default function Navigation() {
                             className={cn(
                                 "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors",
                                 pathname === href
-                                    ? "bg-primary text-primary-foreground"
+                                    ? "border-2 border-primary bg-primary/30 shadow-lg shadow-primary backdrop-blur-md"
                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                             )}
                         >
