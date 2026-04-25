@@ -1,9 +1,16 @@
 "use client";
 
-import { type ValidatorResponseItem } from "@/app/api/route";
+import { type ValidatorResponseItem } from "@/app/api/validators/route";
 import { OptionsContext } from "@/features/options/OptionsContext";
-import { fetchIota } from "@/lib/fetchIota";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { fetchValidators } from "@/lib/fetchValidators";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import type { GlobeMethods } from "react-globe.gl";
 
 type GlobePoint = {
@@ -35,6 +42,7 @@ export type { GlobePoint };
 interface GlobeContextValue {
     onGlobeReady: (methods: GlobeMethods) => void;
     moveGlobeTo: (lat: number, lng: number, altitude?: number) => void;
+    zoomGlobe: (deltaY: number) => void;
     resetGlobe: () => void;
     getCanvas: () => HTMLCanvasElement | null;
     geoPoints: GlobePoint[];
@@ -43,6 +51,7 @@ interface GlobeContextValue {
 export const GlobeContext = createContext<GlobeContextValue>({
     onGlobeReady: () => {},
     moveGlobeTo: () => {},
+    zoomGlobe: () => {},
     resetGlobe: () => {},
     getCanvas: () => null,
     geoPoints: [],
@@ -66,14 +75,18 @@ export default function GlobeContextProvider({
 
         const load = async () => {
             try {
-                const info = await fetchIota(network);
-                const sig = buildGeoSignature(info.validators);
+                const { data } = await fetchValidators(network);
+                const sig = buildGeoSignature(data.validators);
                 if (geoSigRef.current === sig) return;
                 geoSigRef.current = sig;
                 setGeoPoints(
-                    info.validators
+                    data.validators
                         .filter((v) => v.geo)
-                        .map((v) => ({ lat: v.geo!.lat, lng: v.geo!.lon, iotaAddress: v.iotaAddress }))
+                        .map((v) => ({
+                            lat: v.geo!.lat,
+                            lng: v.geo!.lon,
+                            iotaAddress: v.iotaAddress,
+                        }))
                 );
             } catch (e) {
                 console.error("Globe geo fetch failed:", e);
@@ -99,12 +112,32 @@ export default function GlobeContextProvider({
                 returnTimeoutRef.current = null;
             }
 
+            try {
+                methods.controls().autoRotate = false;
+            } catch {
+                /* Safari */
+            }
             const targetAltitude = altitude ?? methods.pointOfView().altitude;
-            methods.controls().autoRotate = false;
             methods.pointOfView({ lat, lng, altitude: targetAltitude }, 1000);
         },
         []
     );
+
+    const zoomGlobe = useCallback((deltaY: number) => {
+        const methods = globeMethodsRef.current;
+        if (!methods) return;
+        try {
+            const pov = methods.pointOfView();
+            const factor = deltaY > 0 ? 1.2 : 0.85;
+            const newAlt = Math.min(Math.max(pov.altitude * factor, 0.15), 8);
+            methods.pointOfView(
+                { lat: pov.lat, lng: pov.lng, altitude: newAlt },
+                0
+            );
+        } catch {
+            // Safari
+        }
+    }, []);
 
     const getCanvas = useCallback(
         () => globeMethodsRef.current?.renderer().domElement ?? null,
@@ -120,7 +153,11 @@ export default function GlobeContextProvider({
             const methods = globeMethodsRef.current;
             if (!methods) return;
             methods.pointOfView(HOME_POV, 1500);
-            methods.controls().autoRotate = true;
+            try {
+                methods.controls().autoRotate = true;
+            } catch {
+                /* Safari */
+            }
             returnTimeoutRef.current = null;
         }, RETURN_DELAY_MS);
     }, []);
@@ -130,6 +167,7 @@ export default function GlobeContextProvider({
             value={{
                 onGlobeReady,
                 moveGlobeTo,
+                zoomGlobe,
                 resetGlobe,
                 getCanvas,
                 geoPoints,

@@ -5,6 +5,7 @@ import landTopology from "@/assets/land_10m.json";
 import randomLocations from "@/assets/random-locations.json";
 import texture from "@/assets/Textures.jpg";
 import { GlobeContext } from "@/features/globe/GlobeContext";
+import { randomInt } from "@/lib/math";
 import { cn } from "@/lib/utils";
 import {
     useCallback,
@@ -39,8 +40,8 @@ type GlobeArc = {
 type GlobeProps = {
     className?: string;
     onReady?: (methods: GlobeMethods) => void;
-
     variant?: "home" | "globe";
+    globeOffset?: [number, number];
     ref?: React.RefObject<GlobeMethods | undefined>;
 };
 
@@ -83,6 +84,7 @@ export function Globe({
     onReady,
     ref: passedRef,
     variant,
+    globeOffset = [0, 0],
 }: GlobeProps) {
     const { onGlobeReady: notifyGlobeReady, geoPoints } =
         useContext(GlobeContext);
@@ -218,7 +220,7 @@ export function Globe({
 
     const handleCustomThreeObject = useCallback((point: object) => {
         const datum = point as CustomLayerDatum;
-        if (datum.kind === "mesh") return createGmonadsMesh();
+        if (datum.kind === "mesh") return createMesh();
         return new THREE.Mesh(
             new THREE.SphereGeometry(datum.size),
             new THREE.MeshBasicMaterial({ color: datum.color })
@@ -250,6 +252,7 @@ export function Globe({
                 ref={globeRef}
                 width={size.width}
                 height={size.height}
+                globeOffset={globeOffset}
                 backgroundColor="#08070e"
                 rendererConfig={{ alpha: true, antialias: true }}
                 globeImageUrl={
@@ -260,7 +263,9 @@ export function Globe({
                 polygonCapMaterial={
                     variant === "home" ? polygonCapMaterial : undefined
                 }
-                polygonSideColor={variant === "home" ? () => "#00000000" : undefined}
+                polygonSideColor={
+                    variant === "home" ? () => "#00000000" : undefined
+                }
                 polygonAltitude={variant === "home" ? 0.01 : undefined}
                 bumpImageUrl={undefined}
                 customLayerData={CUSTOM_LAYER_DATA}
@@ -290,29 +295,32 @@ export function Globe({
                 arcDashGap={2}
                 arcDashAnimateTime="time"
                 onGlobeReady={() => {
-                    if (globeRef.current) {
-                        onReady?.(globeRef.current);
-                        notifyGlobeReady(globeRef.current);
-                    }
+                    requestAnimationFrame(() => {
+                        const globe = globeRef.current;
+                        if (!globe) return;
 
-                    const controls = globeRef.current?.controls();
-                    if (!controls) return;
+                        onReady?.(globe);
+                        notifyGlobeReady(globe);
 
-                    controls.autoRotate = true;
-                    controls.autoRotateSpeed = 0.35;
-                    controls.enablePan = false;
-                    controls.enableZoom = true;
-                    controls.enableDamping = true;
-                    controls.dampingFactor = 0.08;
-                    controls.minDistance = 140;
-                    controls.maxDistance = 360;
+                        const controls = globe.controls();
+                        if (!controls) return;
 
-                    globeRef.current?.pointOfView({
-                        lat: 19.054339351561637,
-                        lng: -50.421161072148465,
-                        altitude: INITIAL_ALTITUDE,
+                        controls.autoRotate = true;
+                        controls.autoRotateSpeed = 0.35;
+                        controls.enablePan = false;
+                        controls.enableZoom = true;
+                        controls.enableDamping = true;
+                        controls.dampingFactor = 0.08;
+                        controls.minDistance = 140;
+                        controls.maxDistance = 360;
+
+                        globe.pointOfView({
+                            lat: 19.054339351561637,
+                            lng: -50.421161072148465,
+                            altitude: INITIAL_ALTITUDE,
+                        });
+                        setClusterCellSize(getCellSize(INITIAL_ALTITUDE));
                     });
-                    setClusterCellSize(getCellSize(INITIAL_ALTITUDE));
                 }}
                 onZoom={(pov) => {
                     const next = getCellSize(pov.altitude);
@@ -338,11 +346,7 @@ function buildStableArcs(
     points.forEach((source, si) => {
         const targets = points
             .filter((_, ti) => ti !== si)
-            .sort(
-                (a, b) =>
-                    hashString(`${source.iotaAddress}->${a.iotaAddress}`) -
-                    hashString(`${source.iotaAddress}->${b.iotaAddress}`)
-            )
+            .sort(() => Math.random() - 0.5)
             .slice(0, linksPerPoint);
 
         targets.forEach((target) => {
@@ -358,14 +362,6 @@ function buildStableArcs(
     });
 
     return arcs;
-}
-
-function hashString(value: string) {
-    let hash = 0;
-    for (let i = 0; i < value.length; i++) {
-        hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-    }
-    return hash;
 }
 
 function createCustomLayerData(
@@ -392,11 +388,7 @@ function createCustomLayerData(
     return [{ kind: "mesh" }, ...surfaceStars, ...backgroundStars];
 }
 
-function randomInt(min: number, max: number) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-}
-
-function createGmonadsMesh() {
+function createMesh() {
     const group = new THREE.Group();
     group.add(
         new THREE.Mesh(
