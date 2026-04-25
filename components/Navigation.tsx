@@ -2,7 +2,7 @@
 
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { cn } from "@/lib/utils";
-import { Globe, Home, Menu, X } from "lucide-react";
+import { ArrowLeftRight, Clock, Compass, Globe, Home, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useContext, useState } from "react";
@@ -18,17 +18,28 @@ import {
 
 const links = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/globe", label: "Globe", icon: Globe },
+    { href: "/validators", label: "Validators", icon: Globe },
+    { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+    { href: "/epochs", label: "Epochs", icon: Clock },
+    { href: "/explore", label: "Explore", icon: Compass },
 ];
 
 export default function Navigation() {
-    const { network, selectNetwork } = useContext(OptionsContext);
+    const { network, selectNetwork, isFullscreen } = useContext(OptionsContext);
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
 
     return (
-        <header className="fixed inset-x-0 top-0 z-50 flex justify-center pt-3">
-            <nav className="flex h-(--nav-height) w-full max-w-6xl items-center gap-2 rounded-full border border-border/50 bg-background/60 px-4 shadow-lg shadow-black/10 backdrop-blur-md sm:px-5 xl:px-10">
+        <header className={cn(
+            "fixed inset-x-0 top-0 z-50 flex justify-center transition-[padding] duration-500 ease-in-out",
+            isFullscreen ? "pt-0" : "pt-2"
+        )}>
+            <nav className={cn(
+                "flex h-(--nav-height) w-full items-center gap-2 border border-border/50 bg-background/60 px-4 shadow-lg shadow-black/10 backdrop-blur-md transition-[max-width,border-radius] duration-500 ease-in-out sm:px-5 xl:px-10",
+                isFullscreen
+                    ? "max-w-full rounded-none"
+                    : "max-w-6xl rounded-full"
+            )}>
                 <Link
                     href="/"
                     className="mr-2 shrink-0"
@@ -67,7 +78,6 @@ export default function Navigation() {
                     <SelectContent position="popper">
                         <SelectItem value="mainnet">Mainnet</SelectItem>
                         <SelectItem value="testnet">Testnet</SelectItem>
-                        <SelectItem value="devnet">Devnet</SelectItem>
                     </SelectContent>
                 </Select>
 
