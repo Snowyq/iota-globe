@@ -3,6 +3,7 @@ const NANO = 1_000_000_000;
 export type IotaFormatResult = { value: string; label: string };
 
 export function formatNumber(n: number): string {
+    if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
     return String(n);
@@ -22,12 +23,19 @@ export function formatIota(n: number, prefix = true): IotaFormatResult {
     return { value: n.toFixed(2), label: prefix ? "IOTA" : "" };
 }
 
-export function formatIotaNano(
-    nano: string | null,
+export function formatNanoToIota(
+    nano: string | null | undefined,
     prefix = true
 ): IotaFormatResult {
     if (!nano) return { value: "—", label: "" };
     return formatIota(Number(BigInt(nano)) / NANO, prefix);
+}
+
+export function formatIotaNano(
+    nano: string | null | undefined
+): IotaFormatResult {
+    if (!nano) return { value: "—", label: "" };
+    return { value: Number(nano).toLocaleString(), label: "nanos" };
 }
 
 export function formatDuration(ms: number): string {
@@ -41,7 +49,7 @@ export function formatDuration(ms: number): string {
     if (d > 0) parts.push(`${d}d`);
     if (h > 0) parts.push(`${h}h`);
     if (m > 0) parts.push(`${m}m`);
-    if (s > 0 && d === 0) parts.push(`${s}s`);
+    if (s >= 0 && d === 0) parts.push(`${s}s`);
     return parts.join(" ");
 }
 

@@ -1,7 +1,9 @@
 import { NetworkApiResponseData } from "@/app/api/network/route";
-import { FetchResult } from "@/lib/fetchLive";
+import { FetchResult } from "@/lib/fetch";
 
-export async function fetchNetwork(network: string): Promise<FetchResult<NetworkApiResponseData>> {
+export async function fetchNetwork(
+    network: string
+): Promise<FetchResult<NetworkApiResponseData>> {
     const response = await fetch(`/api/network?dataset=${network}`);
     const json = await response.json();
 

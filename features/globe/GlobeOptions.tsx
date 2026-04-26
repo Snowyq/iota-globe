@@ -9,18 +9,18 @@ import { useContext } from "react";
 
 export function GlobeOptions({ className }: { className?: string }) {
     const { resetGlobe } = useContext(GlobeContext);
-    const { isFullscreen, toggleFullscreen } = useContext(OptionsContext);
+    const { isFullscreen, canUseFullscreen, toggleFullscreen } = useContext(OptionsContext);
 
     return (
         <div className={cn("flex gap-2", className)}>
             <Button variant="secondary" size="icon" onClick={resetGlobe}>
                 <Crosshair className="h-4 w-4" />
             </Button>
-            <Button variant="secondary" size="icon" onClick={toggleFullscreen}>
-                {isFullscreen
-                    ? <Minimize2 className="h-4 w-4" />
-                    : <Maximize2 className="h-4 w-4" />}
-            </Button>
+            {canUseFullscreen && (
+                <Button variant="secondary" size="icon" onClick={toggleFullscreen}>
+                    {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </Button>
+            )}
         </div>
     );
 }

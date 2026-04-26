@@ -26,13 +26,17 @@ type SortKey =
     | "lastReward";
 type Filter = "all" | "committee" | "active" | "pending" | "at-risk";
 
-const COLUMNS: { key: SortKey; label: string; center?: boolean }[] = [
+const COLUMNS: {
+    key: SortKey;
+    label: string;
+    align?: "left" | "center" | "right";
+}[] = [
     { key: "name", label: "Validator" },
-    { key: "stake", label: "Stake", center: true },
-    { key: "apy", label: "APY", center: true },
-    { key: "commission", label: "Effective Commission", center: true },
-    { key: "votingPower", label: "Voting Power", center: true },
-    { key: "lastReward", label: "Last Epoch Reward", center: true },
+    { key: "stake", label: "Stake", align: "right" },
+    { key: "apy", label: "APY" },
+    { key: "commission", label: "Commission", align: "right" },
+    { key: "votingPower", label: "Voting Power", align: "right" },
+    { key: "lastReward", label: "Last Epoch Reward", align: "right" },
 ];
 
 function getSortValue(v: Validator, key: SortKey): number | string {
@@ -110,7 +114,7 @@ export default function ValidatorsTable({
             <TableCaption>IOTA validators.</TableCaption>
             <TableHeader>
                 <TableRow className="hover:bg-transparent!">
-                    {COLUMNS.map(({ key, label, center }) => {
+                    {COLUMNS.map(({ key, label, align }) => {
                         const active = sortKey === key;
                         const Icon = active
                             ? sortDir === "asc"
@@ -123,13 +127,15 @@ export default function ValidatorsTable({
                                 onClick={() => handleSort(key)}
                                 className={cn(
                                     "cursor-pointer text-xs text-muted-foreground select-none",
-                                    center && "text-center"
+                                    align === "center" && "text-center",
+                                    align === "right" && "text-right"
                                 )}
                             >
                                 <span
                                     className={cn(
                                         "flex items-center gap-1 text-wrap",
-                                        center && "justify-center"
+                                        align === "center" && "justify-center",
+                                        align === "right" && "justify-end"
                                     )}
                                 >
                                     {label}

@@ -1,7 +1,9 @@
 import { ValidatorsApiResponseData } from "@/app/api/validators/route";
-import { FetchResult } from "@/lib/fetchLive";
+import { FetchResult } from "@/lib/fetch";
 
-export async function fetchValidators(network: string): Promise<FetchResult<ValidatorsApiResponseData>> {
+export async function fetchValidators(
+    network: string
+): Promise<FetchResult<ValidatorsApiResponseData>> {
     const response = await fetch(`/api/validators?dataset=${network}`);
     const json = await response.json();
 

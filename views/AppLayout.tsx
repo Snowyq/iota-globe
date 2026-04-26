@@ -7,27 +7,62 @@ import { OptionsContext } from "@/features/options/OptionsContext";
 import { SelectedValidator } from "@/features/validators/SelectedValidator";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import IndexFullscreen from "./IndexFullscreen";
 
 const PANEL_WIDTH = 380;
 const GLOBE_OFFSET: [number, number] = [PANEL_WIDTH / 2, 0];
+const GLOBE_CENTER_OFFSET_Y = 0;
 
 function GlobeWithControls({ panelFullscreen }: { panelFullscreen: boolean }) {
+    const outerRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLDivElement>(null);
+    const [offsets, setOffsets] = useState<[number, number]>([0, 0]);
+
+    useEffect(() => {
+        const update = () => {
+            const outer = outerRef.current;
+            const canvas = canvasRef.current;
+            if (!outer || !canvas) return;
+            const sy = window.scrollY;
+            const nav = document.querySelector("header");
+            const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
+            const outerBottom = outer.getBoundingClientRect().bottom + sy;
+            const visibleCenter = (navBottom + outerBottom) / 2;
+            const canvasRect = canvas.getBoundingClientRect();
+            const canvasCenter = canvasRect.top + sy + canvasRect.height / 2;
+            setOffsets([
+                0,
+                visibleCenter - canvasCenter + GLOBE_CENTER_OFFSET_Y,
+            ]);
+        };
+
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(document.documentElement);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <div
+            ref={outerRef}
             className={cn(
-                "relative w-screen transition-[height,max-height] duration-500 ease-in-out",
-                panelFullscreen ? "h-svh max-h-svh" : "h-[75vh] max-h-200"
+                "relative w-screen transition-[height] duration-500 ease-in-out",
+                panelFullscreen ? "h-svh" : "h-[60vh] max-h-200 sm:h-[60vh]"
             )}
         >
-            <div className="absolute inset-0 overflow-hidden">
+            <div
+                ref={canvasRef}
+                className="absolute inset-0 overflow-hidden md:bottom-auto md:h-dvh md:overflow-visible"
+            >
                 <GlobeNoSSR
                     className=""
                     variant="home"
-                    globeOffset={panelFullscreen ? GLOBE_OFFSET : [0, 0]}
+                    globeOffset={panelFullscreen ? GLOBE_OFFSET : offsets}
+                    targetAltitude={panelFullscreen ? 2.5 : 4.5}
                 />
             </div>
+
             <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--nav-height)+2rem)] bottom-0 z-20">
                 <GlobeOptions className="pointer-events-auto absolute right-4 flex-col sm:right-5 xl:right-10" />
             </div>
@@ -52,9 +87,19 @@ function PagePanel({
                 "z-20 transition-opacity duration-180",
                 contentVisible ? "opacity-100" : "opacity-0",
                 panelFullscreen
-                    ? "fixed top-[var(--nav-height)] bottom-0 left-0 w-150 bg-background/70 backdrop-blur-md"
-                    : "relative -mt-20 w-full pt-px"
+                    ? "fixed top-(--nav-height) bottom-0 left-0 w-200 bg-linear-to-r from-background/70 to-background/20 backdrop-blur-lg"
+                    : "relative w-full"
             )}
+            style={
+                panelFullscreen
+                    ? {
+                          maskImage:
+                              "linear-gradient(to left, transparent, black 6rem)",
+                          WebkitMaskImage:
+                              "linear-gradient(to left, transparent, black 6rem)",
+                      }
+                    : undefined
+            }
         >
             {panelFullscreen ? (
                 <ScrollArea className="h-full">
@@ -63,10 +108,7 @@ function PagePanel({
                     </div>
                 </ScrollArea>
             ) : (
-                <>
-                    <div className="absolute inset-x-0 top-0 -z-10 h-20 bg-linear-to-b from-background/0 to-background" />
-                    <div className="@container section py-8">{children}</div>
-                </>
+                <>{children}</>
             )}
         </div>
     );
@@ -99,12 +141,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const fullscreenSlot = pathname === "/" ? <IndexFullscreen /> : undefined;
 
     useEffect(() => {
-        setContentVisible(false);
-        const t = setTimeout(() => {
+        const t1 = setTimeout(() => setContentVisible(false), 0);
+        const t2 = setTimeout(() => {
             setPanelFullscreen(isFullscreen);
             setContentVisible(true);
         }, 180);
-        return () => clearTimeout(t);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+        };
     }, [isFullscreen]);
 
     return (

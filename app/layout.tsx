@@ -3,9 +3,11 @@ import { Geist, Geist_Mono, Lora } from "next/font/google";
 import Navigation from "@/components/Navigation";
 import { ThemeProvider } from "@/components/theme-provider";
 import GlobeContextProvider from "@/features/globe/GlobeContext";
-import ValidatorsContextProvider from "@/features/iota/ValidatorsContext";
+import NetworkContextProvider from "@/features/network/NetworkContext";
 import OptionsContextProvider from "@/features/options/OptionsContext";
+import ValidatorsContextProvider from "@/features/validators/ValidatorsContext";
 import { cn } from "@/lib/utils";
+import { AppLayout } from "@/views/AppLayout";
 import "./globals.css";
 
 const loraHeading = Lora({ subsets: ["latin"], variable: "--font-heading" });
@@ -35,15 +37,18 @@ export default function RootLayout({
             )}
         >
             <body>
+                {/* Context Providers hell */}
                 <OptionsContextProvider>
-                    <ValidatorsContextProvider>
-                        <GlobeContextProvider>
-                            <ThemeProvider>
-                                <Navigation />
-                                <>{children}</>
-                            </ThemeProvider>
-                        </GlobeContextProvider>
-                    </ValidatorsContextProvider>
+                    <NetworkContextProvider>
+                        <ValidatorsContextProvider>
+                            <GlobeContextProvider>
+                                <ThemeProvider>
+                                    <Navigation />
+                                    <AppLayout>{children}</AppLayout>
+                                </ThemeProvider>
+                            </GlobeContextProvider>
+                        </ValidatorsContextProvider>
+                    </NetworkContextProvider>
                 </OptionsContextProvider>
             </body>
         </html>
