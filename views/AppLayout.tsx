@@ -4,17 +4,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { GlobeNoSSR } from "@/features/globe/GlobeNoSSR";
 import { GlobeOptions } from "@/features/globe/GlobeOptions";
 import { OptionsContext } from "@/features/options/OptionsContext";
-import { SelectedValidator } from "@/features/validators/SelectedValidator";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useContext, useEffect, useRef, useState } from "react";
-import IndexFullscreen from "./IndexFullscreen";
+import { IndexFullscreenPanel } from "./Index";
 
-const PANEL_WIDTH = 380;
-const GLOBE_OFFSET: [number, number] = [PANEL_WIDTH / 2, 0];
 const GLOBE_CENTER_OFFSET_Y = 0;
 
-function GlobeWithControls({ panelFullscreen }: { panelFullscreen: boolean }) {
+function GlobeWithControls({
+    panelFullscreen,
+    globeOffsetX,
+}: {
+    panelFullscreen: boolean;
+    globeOffsetX: number;
+}) {
     const outerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLDivElement>(null);
     const [offsets, setOffsets] = useState<[number, number]>([0, 0]);
@@ -24,13 +27,14 @@ function GlobeWithControls({ panelFullscreen }: { panelFullscreen: boolean }) {
             const outer = outerRef.current;
             const canvas = canvasRef.current;
             if (!outer || !canvas) return;
-            const sy = window.scrollY;
+            const scrollY = window.scrollY;
             const nav = document.querySelector("header");
             const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
-            const outerBottom = outer.getBoundingClientRect().bottom + sy;
+            const outerBottom = outer.getBoundingClientRect().bottom + scrollY;
             const visibleCenter = (navBottom + outerBottom) / 2;
             const canvasRect = canvas.getBoundingClientRect();
-            const canvasCenter = canvasRect.top + sy + canvasRect.height / 2;
+            const canvasCenter =
+                canvasRect.top + scrollY + canvasRect.height / 2;
             setOffsets([
                 0,
                 visibleCenter - canvasCenter + GLOBE_CENTER_OFFSET_Y,
@@ -48,7 +52,7 @@ function GlobeWithControls({ panelFullscreen }: { panelFullscreen: boolean }) {
             ref={outerRef}
             className={cn(
                 "relative w-screen transition-[height] duration-500 ease-in-out",
-                panelFullscreen ? "h-svh" : "h-[60vh] max-h-200 sm:h-[60vh]"
+                panelFullscreen ? "h-svh" : "h-[65vh] max-h-200 sm:h-[60vh]"
             )}
         >
             <div
@@ -58,7 +62,7 @@ function GlobeWithControls({ panelFullscreen }: { panelFullscreen: boolean }) {
                 <GlobeNoSSR
                     className=""
                     variant="home"
-                    globeOffset={panelFullscreen ? GLOBE_OFFSET : offsets}
+                    globeOffset={panelFullscreen ? [globeOffsetX, 0] : offsets}
                     targetAltitude={panelFullscreen ? 2.5 : 4.5}
                 />
             </div>
@@ -72,41 +76,41 @@ function GlobeWithControls({ panelFullscreen }: { panelFullscreen: boolean }) {
 
 function PagePanel({
     panelFullscreen,
+    narrow,
     contentVisible,
     fullscreenSlot,
+    panelRef,
     children,
 }: {
     panelFullscreen: boolean;
+    narrow: boolean;
     contentVisible: boolean;
     fullscreenSlot?: React.ReactNode;
+    panelRef: React.RefObject<HTMLDivElement | null>;
     children: React.ReactNode;
 }) {
     return (
         <div
+            ref={panelRef}
             className={cn(
                 "z-20 transition-opacity duration-180",
                 contentVisible ? "opacity-100" : "opacity-0",
                 panelFullscreen
-                    ? "fixed top-(--nav-height) bottom-0 left-0 w-200 bg-linear-to-r from-background/70 to-background/20 backdrop-blur-lg"
+                    ? cn(
+                          "fixed top-(--nav-height) bottom-0 left-0",
+                          narrow
+                              ? "w-100"
+                              : "w-200 bg-background/50 backdrop-blur-xs"
+                      )
                     : "relative w-full"
             )}
-            style={
-                panelFullscreen
-                    ? {
-                          maskImage:
-                              "linear-gradient(to left, transparent, black 6rem)",
-                          WebkitMaskImage:
-                              "linear-gradient(to left, transparent, black 6rem)",
-                      }
-                    : undefined
-            }
         >
             {panelFullscreen ? (
-                <ScrollArea className="h-full">
-                    <div className="@container px-4 py-6">
-                        {fullscreenSlot ?? children}
-                    </div>
-                </ScrollArea>
+                (fullscreenSlot ?? (
+                    <ScrollArea className="h-full">
+                        <div className="@container px-4 py-6">{children}</div>
+                    </ScrollArea>
+                ))
             ) : (
                 <>{children}</>
             )}
@@ -114,31 +118,30 @@ function PagePanel({
     );
 }
 
-function SelectedValidatorPanel({
-    contentVisible,
-}: {
-    contentVisible: boolean;
-}) {
-    return (
-        <div
-            className={cn(
-                "fixed right-4 bottom-8 z-20 w-72 transition-opacity duration-300 sm:right-5 xl:right-10",
-                contentVisible ? "opacity-100" : "opacity-0"
-            )}
-        >
-            <SelectedValidator />
-        </div>
-    );
-}
-
 export function AppLayout({ children }: { children: React.ReactNode }) {
     const { isFullscreen } = useContext(OptionsContext);
     const pathname = usePathname();
-
     const [contentVisible, setContentVisible] = useState(true);
     const [panelFullscreen, setPanelFullscreen] = useState(isFullscreen);
+    const panelRef = useRef<HTMLDivElement>(null);
+    const [globeOffsetX, setGlobeOffsetX] = useState(0);
 
-    const fullscreenSlot = pathname === "/" ? <IndexFullscreen /> : undefined;
+    useEffect(() => {
+        const el = panelRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver(() => {
+            setGlobeOffsetX(el.offsetWidth / 2);
+        });
+        observer.observe(el);
+        setGlobeOffsetX(el.offsetWidth / 2);
+        return () => observer.disconnect();
+    }, [panelFullscreen]);
+
+    const isIndexFullscreen = pathname === "/" && panelFullscreen;
+
+    const fullscreenSlot = isIndexFullscreen ? (
+        <IndexFullscreenPanel />
+    ) : undefined;
 
     useEffect(() => {
         const t1 = setTimeout(() => setContentVisible(false), 0);
@@ -161,16 +164,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     : "min-h-svh overflow-x-hidden"
             )}
         >
-            <GlobeWithControls panelFullscreen={panelFullscreen} />
+            <GlobeWithControls
+                panelFullscreen={panelFullscreen}
+                globeOffsetX={globeOffsetX}
+            />
             <PagePanel
                 panelFullscreen={panelFullscreen}
+                narrow={isIndexFullscreen}
                 contentVisible={contentVisible}
                 fullscreenSlot={fullscreenSlot}
+                panelRef={panelRef}
             >
                 {children}
             </PagePanel>
-            {panelFullscreen && (
-                <SelectedValidatorPanel contentVisible={contentVisible} />
+            {isIndexFullscreen && (
+                <div
+                    id="globe-bottom-portal"
+                    className={cn(
+                        "pointer-events-none fixed right-0 bottom-0 left-100 z-20 transition-opacity duration-180",
+                        contentVisible ? "opacity-100" : "opacity-0"
+                    )}
+                />
             )}
         </div>
     );

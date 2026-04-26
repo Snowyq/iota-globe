@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { cn } from "@/lib/utils";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import {
     memo,
@@ -24,7 +25,7 @@ const PANEL_STYLE =
 function SelectedMarker({ validator }: { validator: ValidatorResponseItem }) {
     return (
         <Link
-            href={`/validator/${validator.iotaAddress}`}
+            href={`/validators/${validator.iotaAddress}`}
             className={cn(
                 PANEL_STYLE,
                 "flex min-w-36 flex-col items-center gap-2 overflow-hidden p-3 transition-opacity hover:opacity-80"
@@ -64,25 +65,37 @@ function ClusterPanel({
             <ScrollArea className="h-44">
                 <div className="flex flex-col gap-px px-1.5 pb-1.5">
                     {validators.map((v) => (
-                        <button
+                        <div
                             key={v.iotaAddress}
-                            onClick={() => onSelect(v.iotaAddress)}
                             className={cn(
-                                "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors outline-none hover:bg-muted/60",
-                                selectedAddress === v.iotaAddress &&
-                                    "bg-primary/15 text-primary"
+                                "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors",
+                                selectedAddress === v.iotaAddress
+                                    ? "bg-primary/15 text-primary"
+                                    : "hover:bg-muted/60"
                             )}
                         >
-                            {v.payload.imageUrl && (
-                                // eslint-disable-next-line
-                                <img
-                                    src={v.payload.imageUrl}
-                                    alt={v.payload.name}
-                                    className="h-5 w-5 shrink-0 rounded-md object-contain"
-                                />
-                            )}
-                            <span className="truncate">{v.payload.name}</span>
-                        </button>
+                            <button
+                                onClick={() => onSelect(v.iotaAddress)}
+                                className="flex min-w-0 flex-1 items-center gap-2 text-left outline-none"
+                            >
+                                {v.payload.imageUrl && (
+                                    // eslint-disable-next-line
+                                    <img
+                                        src={v.payload.imageUrl}
+                                        alt={v.payload.name}
+                                        className="h-5 w-5 shrink-0 rounded-md object-contain"
+                                    />
+                                )}
+                                <span className="truncate">{v.payload.name}</span>
+                            </button>
+                            <Link
+                                href={`/validators/${v.iotaAddress}`}
+                                className="shrink-0 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <ArrowUpRight className="h-3 w-3" />
+                            </Link>
+                        </div>
                     ))}
                 </div>
             </ScrollArea>

@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@theme inline {
+    --breakpoint-xs: 25rem; /* 400px */
+}
+
 @import "../styles/section.css";
 @import "../styles/typography.css";
 @custom-variant dark (&:is(.dark *));
