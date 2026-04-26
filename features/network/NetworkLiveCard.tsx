@@ -49,7 +49,7 @@ function Time({ arrivedAt, now }: { arrivedAt: number; now: number }) {
 function ListSkeleton() {
     return (
         <div className="flex flex-col gap-px">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 8 }).map((_, i) => (
                 <div
                     key={i}
                     className="flex items-center justify-between px-2 py-1.5"
@@ -109,7 +109,8 @@ function CheckpointsList() {
 
     useLiveStream<CheckpointStreamItem>("/api/checkpoints/stream", (item) => {
         setCheckpoints((prev) => {
-            if (prev.some((c) => c.sequenceNumber === item.sequenceNumber)) return prev;
+            if (prev.some((c) => c.sequenceNumber === item.sequenceNumber))
+                return prev;
             return [{ ...item, arrivedAt: Date.now() }, ...prev].slice(0, MAX);
         });
     });
