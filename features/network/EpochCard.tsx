@@ -67,7 +67,7 @@ export function EpochCard({ className }: { className?: string }) {
                             {showEnd
                                 ? formatTimestamp(endMs, "long")
                                 : remainingMs !== null
-                                  ? formatDuration(remainingMs, "short")
+                                  ? formatDuration(remainingMs)
                                   : "—"}
                         </span>
                     </div>
