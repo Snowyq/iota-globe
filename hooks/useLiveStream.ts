@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { OptionsContext } from "@/features/options/OptionsContext";
+import { useContext, useEffect, useRef } from "react";
 
-export function useLiveStream<T>(network: string, path: string) {
-    const [data, setData] = useState<T | null>(null);
+export function useLiveStream<T>(path: string, onMessage: (item: T) => void) {
+    const { network } = useContext(OptionsContext);
+    const onMessageRef = useRef(onMessage);
+    onMessageRef.current = onMessage;
 
     useEffect(() => {
-        setData(null);
         const es = new EventSource(`${path}?dataset=${network}`);
         es.onmessage = (e) => {
             try {
-                setData(JSON.parse(e.data) as T);
-            } catch { /* malformed frame */ }
+                onMessageRef.current(JSON.parse(e.data) as T);
+            } catch {
+                /* malformed frame */
+            }
         };
         es.onerror = () => es.close();
         return () => es.close();
     }, [network, path]);
-
-    return data;
 }

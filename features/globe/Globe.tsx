@@ -42,6 +42,7 @@ type GlobeProps = {
     onReady?: (methods: GlobeMethods) => void;
     variant?: "home" | "globe";
     globeOffset?: [number, number];
+    targetAltitude?: number;
     ref?: React.RefObject<GlobeMethods | undefined>;
 };
 
@@ -60,11 +61,11 @@ type CustomLayerDatum =
           color: string;
       };
 
-const INITIAL_ALTITUDE = 3;
+const INITIAL_ALTITUDE = 4.5;
 const CLUSTER_BUBBLE_ALTITUDE = 0.06;
 const ARC_ANIMATE_TIME_MIN = 300;
 const ARC_ANIMATE_TIME_MAX = 800;
-const ARC_MID_COLOR = "#faf7e6";
+const ARC_MID_COLOR = "#a8c8f0";
 const CUSTOM_LAYER_DATA = createCustomLayerData(
     randomLocations as RandomLocationDatum[]
 );
@@ -85,12 +86,18 @@ export function Globe({
     ref: passedRef,
     variant,
     globeOffset = [0, 0],
+    targetAltitude,
 }: GlobeProps) {
     const { onGlobeReady: notifyGlobeReady, geoPoints } =
         useContext(GlobeContext);
     const containerRef = useRef<HTMLDivElement>(null);
     const localGlobeRef = useRef<GlobeMethods | undefined>(undefined);
     const globeRef = passedRef || localGlobeRef;
+
+    useEffect(() => {
+        if (targetAltitude === undefined) return;
+        globeRef.current?.pointOfView({ altitude: targetAltitude }, 500);
+    }, [targetAltitude]);
 
     const [size, setSize] = useState(() => ({
         width: typeof window !== "undefined" ? window.innerWidth : 1,
@@ -109,8 +116,8 @@ export function Globe({
     const globeMaterial = useMemo(
         () =>
             new THREE.MeshPhongMaterial({
-                color: "#1a0a3d",
-                opacity: 0.9,
+                color: "#050d1f",
+                opacity: 0.92,
                 transparent: true,
             }),
         []
@@ -119,7 +126,7 @@ export function Globe({
     const polygonCapMaterial = useMemo(
         () =>
             new THREE.MeshPhongMaterial({
-                color: "#6067F9",
+                color: "#2a4bc4",
                 side: THREE.DoubleSide,
                 map: new THREE.TextureLoader().load(texture.src),
             }),
@@ -253,7 +260,7 @@ export function Globe({
                 width={size.width}
                 height={size.height}
                 globeOffset={globeOffset}
-                backgroundColor="#08070e"
+                backgroundColor="rgba(0,0,0,0)"
                 rendererConfig={{ alpha: true, antialias: true }}
                 globeImageUrl={
                     variant === "globe" ? earthDarkTexture.src : undefined
@@ -272,8 +279,8 @@ export function Globe({
                 customThreeObject={handleCustomThreeObject}
                 customThreeObjectUpdate={handleCustomThreeObjectUpdate}
                 showAtmosphere={true}
-                atmosphereColor="#5784a7"
-                atmosphereAltitude={0.5}
+                atmosphereColor="#3a6abf"
+                atmosphereAltitude={0.35}
                 htmlElementsData={clusteredPoints}
                 htmlLat="lat"
                 htmlLng="lng"
@@ -284,7 +291,7 @@ export function Globe({
                 pointsData={clusteredPoints}
                 pointAltitude={CLUSTER_BUBBLE_ALTITUDE}
                 pointRadius={0.2}
-                pointColor={() => "rgba(34,211,238,0.65)"}
+                pointColor={() => "rgba(96,165,250,0.75)"}
                 pointsMerge={true}
                 pointResolution={5}
                 arcsData={contextArcsData}
@@ -312,7 +319,7 @@ export function Globe({
                         controls.enableDamping = true;
                         controls.dampingFactor = 0.08;
                         controls.minDistance = 140;
-                        controls.maxDistance = 360;
+                        controls.maxDistance = 600;
 
                         globe.pointOfView({
                             lat: 19.054339351561637,
@@ -382,7 +389,7 @@ function createCustomLayerData(
         lng: (Math.random() - 1) * 360,
         altitude: Math.random() * 2,
         size: Math.random() * 0.4,
-        color: "#faadfd",
+        color: "#7aaae8",
     }));
 
     return [{ kind: "mesh" }, ...surfaceStars, ...backgroundStars];
@@ -394,9 +401,9 @@ function createMesh() {
         new THREE.Mesh(
             new THREE.SphereGeometry(100.3, 64, 64),
             new THREE.MeshBasicMaterial({
-                color: new THREE.Color("#1a0a3d"),
+                color: new THREE.Color("#040c20"),
                 transparent: true,
-                opacity: 0.18,
+                opacity: 0.2,
                 depthWrite: false,
             })
         )
@@ -405,9 +412,9 @@ function createMesh() {
         new THREE.Mesh(
             new THREE.SphereGeometry(101.6, 48, 48),
             new THREE.MeshBasicMaterial({
-                color: new THREE.Color("#003e46"),
+                color: new THREE.Color("#0a1c40"),
                 transparent: true,
-                opacity: 0.2,
+                opacity: 0.22,
                 side: THREE.BackSide,
                 depthWrite: false,
             })

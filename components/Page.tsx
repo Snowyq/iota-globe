@@ -10,7 +10,7 @@ export function Page({
     return (
         <div
             className={cn(
-                "@container section rounded-lg bg-background/30 py-8 backdrop-blur-xl max-sm:-mt-20",
+                "@container section rounded-lg py-8 max-sm:-mt-20",
                 className
             )}
         >

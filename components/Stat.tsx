@@ -55,15 +55,17 @@ export function Stat({
     sub,
     size,
     className,
+    innerClassName,
 }: {
     value: React.ReactNode;
     label?: string;
     sub?: string;
     className?: string;
+    innerClassName?: string;
 } & VariantProps<typeof statVariants>) {
     return (
         <div className={cn(statVariants({ size }), className)}>
-            <div className="flex items-baseline gap-1">
+            <div className={cn("flex items-baseline gap-1", innerClassName)}>
                 <span className={valueVariants({ size })}>{value ?? "—"}</span>
                 {sub && <span className={subVariants({ size })}>{sub}</span>}
             </div>

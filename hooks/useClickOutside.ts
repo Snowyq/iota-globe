@@ -17,7 +17,6 @@ export function useClickOutside(
             if (target.closest("[data-radix-popper-content-wrapper]")) return;
             callback();
         };
-        // Use "click" not "mousedown" — drag/rotate fires mousedown but not click
         document.addEventListener("click", handler);
         return () => document.removeEventListener("click", handler);
     }, [ref, callback, enabled]);
