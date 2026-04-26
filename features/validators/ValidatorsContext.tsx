@@ -1,57 +1,76 @@
 "use client";
 
-import { ValidatorResponseItem } from "@/app/api/route";
-import { fetchIota } from "@/lib/fetchIota";
+import {
+    ValidatorResponseItem,
+    ValidatorsApiResponseData,
+} from "@/app/api/validators/route";
+import { fetchValidators } from "@/lib/fetchValidators";
 import {
     createContext,
     useCallback,
+    useContext,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from "react";
+import { OptionsContext } from "../options/OptionsContext";
 
-export type ValidatorStats = {
-    stakeIOTA: number;
-    stakePercent: number;
-    apyPercent: number | null;
-    lastEpochRewardIOTA: number | null;
-};
-
-interface ValidatorsContext {
-    validators: ValidatorResponseItem[];
-    selectValidator?: (iotaAddress: string) => void;
-    deselectValidator?: () => void;
-    selectedValidator?: ValidatorResponseItem | null;
+export interface Validator extends ValidatorResponseItem {
+    stats: {
+        stakeIOTA: number;
+        stakePercent: number;
+        apyPercent: number | null;
+        lastEpochRewardIOTA: number | null;
+    };
 }
 
-export const ValidatorsContext = createContext<ValidatorsContext>({
+interface ValidatorsContextValue {
+    validators: Validator[];
+    isLoading: boolean;
+    networkStats: ValidatorsApiResponseData["systemState"] | null;
+    pendingActiveValidatorsSize: string | null;
+    dataTtl: number | null;
+    selectValidator?: (iotaAddress: string) => void;
+    deselectValidator?: () => void;
+    selectedValidator?: Validator | null;
+}
+
+export const ValidatorsContext = createContext<ValidatorsContextValue>({
     validators: [],
+    isLoading: true,
+    networkStats: null,
+    pendingActiveValidatorsSize: null,
+    dataTtl: null,
     selectedValidator: null,
     selectValidator: () => {},
     deselectValidator: () => {},
 });
+
+const PULL_INTERVAL_MS = 60_000;
 
 export default function ValidatorsContextProvider({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const [validators, setValidators] = useState<ValidatorResponseItem[]>([]);
+    const { network } = useContext(OptionsContext);
+    const [validators, setValidators] = useState<Validator[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [networkStats, setNetworkStats] = useState<
+        ValidatorsApiResponseData["systemState"] | null
+    >(null);
+    const [pendingActiveValidatorsSize, setPendingActiveValidatorsSize] =
+        useState<string | null>(null);
+    const [dataTtl, setDataTtl] = useState<number | null>(null);
     const [selectedValidator, setSelectedValidator] =
-        useState<ValidatorResponseItem | null>(null);
-
-    const validatorsSignatureRef = useRef("");
+        useState<Validator | null>(null);
 
     const selectValidator = useCallback(
         (iotaAddress: string) => {
-            console.log("Selecting validator with IOTA address:", iotaAddress);
-
             const validator = validators.find(
                 (v) => v.iotaAddress === iotaAddress
             );
             setSelectedValidator(validator ?? null);
-            console.log("Selected validator:", validator);
         },
         [validators]
     );
@@ -61,36 +80,62 @@ export default function ValidatorsContextProvider({
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line
+        setValidators([]);
+        setIsLoading(true);
+        setNetworkStats(null);
+        setPendingActiveValidatorsSize(null);
+        setDataTtl(null);
+
+        let firstLoad = true;
+
         const load = async () => {
             try {
-                const info = await fetchIota();
-                const nextSignature = buildValidatorsSignature(info.validators);
-
-                if (validatorsSignatureRef.current === nextSignature) {
-                    return;
-                }
-
-                validatorsSignatureRef.current = nextSignature;
-                setValidators(info.validators);
+                const { data: info, ttl } = await fetchValidators(network);
+                setValidators(
+                    info.validators.map((v) => computeStats(v, info))
+                );
+                setNetworkStats(info.systemState);
+                setPendingActiveValidatorsSize(
+                    info.pendingActiveValidatorsSize
+                );
+                setDataTtl(ttl);
             } catch (error) {
                 console.error("Failed to refresh validators:", error);
+            } finally {
+                if (firstLoad) {
+                    setIsLoading(false);
+                    firstLoad = false;
+                }
             }
         };
 
         load();
-        const interval = setInterval(load, 5000);
-
+        const interval = setInterval(load, PULL_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, []);
+    }, [network]);
 
     const contextValue = useMemo(
         () => ({
             validators,
+            isLoading,
+            networkStats,
+            pendingActiveValidatorsSize,
+            dataTtl,
             selectValidator,
             deselectValidator,
             selectedValidator,
         }),
-        [validators, selectValidator, deselectValidator, selectedValidator]
+        [
+            validators,
+            isLoading,
+            networkStats,
+            pendingActiveValidatorsSize,
+            dataTtl,
+            selectValidator,
+            deselectValidator,
+            selectedValidator,
+        ]
     );
 
     return (
@@ -100,29 +145,29 @@ export default function ValidatorsContextProvider({
     );
 }
 
-// function computeValidatorStats(v: ValidatorResponseItem): ValidatorWithStats {
-//     return {
-//         ...v,
-//         stakeIOTA:
-//             Number(v.payload.stakingPoolIotaBalance) / 1_000_000_000_000_000,
-//         stakePercent: Number(v.payload.votingPower) / 100,
-//         apyPercent: v.apy != null ? v.apy * 100 : null,
-//         lastEpochRewardIOTA:
-//             v.lastEpochReward != null
-//                 ? Number(v.lastEpochReward) / 1_000_000_000_000
-//                 : null,
-//     };
-// }
+type EpochEventParsed = {
+    epoch: string;
+    validator_address: string;
+    pool_staking_reward: string;
+};
 
-function buildValidatorsSignature(validators: ValidatorResponseItem[]) {
-    return validators
-        .map((validator) => {
-            const geo = validator.geo
-                ? `${validator.geo.lat}:${validator.geo.lon}`
-                : "none";
+function computeStats(
+    v: ValidatorResponseItem,
+    info: ValidatorsApiResponseData
+): Validator {
+    const reward = info.epochInfoEvents
+        .map((e) => e.parsedJson as EpochEventParsed)
+        .find((p) => p.validator_address === v.iotaAddress);
 
-            return `${validator.payload.netAddress}|${validator.geo?.query ?? "none"}|${geo}`;
-        })
-        .sort()
-        .join(";");
+    return {
+        ...v,
+        stats: {
+            stakeIOTA: Number(v.payload.stakingPoolIotaBalance) / 1_000_000_000,
+            stakePercent: Number(v.payload.votingPower) / 100,
+            apyPercent: v.apy != null ? v.apy * 100 : null,
+            lastEpochRewardIOTA: reward
+                ? Number(reward.pool_staking_reward) / 1_000_000_000
+                : null,
+        },
+    };
 }
