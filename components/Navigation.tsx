@@ -107,7 +107,7 @@ export default function Navigation() {
             </nav>
 
             {open && (
-                <div className="0 absolute inset-x-4 top-20 flex flex-col gap-2 rounded-2xl border border-border/50 bg-background/6 p-2 shadow-xl backdrop-blur-md sm:inset-x-5 md:hidden xl:inset-x-10">
+                <div className="0 absolute inset-x-4 top-20 flex flex-col gap-2 rounded-2xl border border-border/50 bg-background/6 bg-card/50 p-2 shadow-xl backdrop-blur-md sm:inset-x-5 md:hidden xl:inset-x-10">
                     {links.map(({ href, label, icon: Icon }) => (
                         <Link
                             key={href}
@@ -117,7 +117,7 @@ export default function Navigation() {
                                 "flex items-center gap-2 rounded-xl px-4 py-3 text-sm transition-colors",
                                 pathname === href
                                     ? "border-2 border-primary bg-primary/50 text-primary-foreground"
-                                    : "border-2 border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    : "border-2 border-transparent hover:bg-primary/10"
                             )}
                         >
                             <Icon className="h-4 w-4" />
