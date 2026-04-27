@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import {
+    createContext,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 
 const FULLSCREEN_MIN_WIDTH = 1536; // 2xl
 
@@ -30,6 +36,7 @@ export default function OptionsContextProvider({
     const [canUseFullscreen, setCanUseFullscreen] = useState(false);
 
     useEffect(() => {
+        // eslint-disable-next-line
         setCanUseFullscreen(window.innerWidth >= FULLSCREEN_MIN_WIDTH);
         const observer = new ResizeObserver(([entry]) => {
             const wide = entry.contentRect.width >= FULLSCREEN_MIN_WIDTH;
@@ -49,8 +56,20 @@ export default function OptionsContextProvider({
     }, []);
 
     const contextValue = useMemo(
-        () => ({ network, selectNetwork, isFullscreen: isFullscreen && canUseFullscreen, canUseFullscreen, toggleFullscreen }),
-        [network, selectNetwork, isFullscreen, canUseFullscreen, toggleFullscreen]
+        () => ({
+            network,
+            selectNetwork,
+            isFullscreen: isFullscreen && canUseFullscreen,
+            canUseFullscreen,
+            toggleFullscreen,
+        }),
+        [
+            network,
+            selectNetwork,
+            isFullscreen,
+            canUseFullscreen,
+            toggleFullscreen,
+        ]
     );
 
     return (
