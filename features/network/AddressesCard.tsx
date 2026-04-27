@@ -34,8 +34,7 @@ export function AddressesCard({ className }: { className?: string }) {
                     size="sm"
                 />
                 <Stat
-                    value={dailyActive.value}
-                    sub={dailyActive.label}
+                    value={dailyActive ?? "—"}
                     label="Daily Active"
                     size="sm"
                 />
