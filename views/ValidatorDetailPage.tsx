@@ -1,6 +1,6 @@
 "use client";
 
-import { InnerLink } from "@/components/InnerLink";
+import { SiteLink } from "@/components/SiteLink";
 import { Page } from "@/components/Page";
 import { PageHeader } from "@/components/PageHeader";
 import { Stat } from "@/components/Stat";
@@ -49,7 +49,7 @@ export default function ValidatorDetailPage() {
                     <span className="block py-4 text-sm text-muted-foreground">
                         or
                     </span>
-                    <InnerLink
+                    <SiteLink
                         className="mb-3 gap-2 text-base text-foreground"
                         href="/validators"
                         arrowPosition="left"
@@ -91,6 +91,11 @@ export default function ValidatorDetailPage() {
 
     return (
         <Page className="gap-4!">
+            <SiteLink
+                href="/validators"
+                label="All validators"
+                arrowPosition="left"
+            />
             <div>
                 <PageHeader
                     title={payload.name}
@@ -101,7 +106,7 @@ export default function ValidatorDetailPage() {
                     actionNearby
                 />
                 {payload.projectUrl && (
-                    <InnerLink
+                    <SiteLink
                         className="mt-2 text-base"
                         href={validator.payload.projectUrl}
                         label={validator.payload.projectUrl?.replace(

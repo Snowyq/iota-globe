@@ -4,9 +4,12 @@ export type IotaFormatResult = { value: string; label: string; raw: number };
 
 export function formatNumber(n: number | null | undefined): IotaFormatResult {
     if (n === null || n === undefined) return { value: "—", label: "", raw: 0 };
-    if (n >= 1_000_000_000) return { value: (n / 1_000_000_000).toFixed(2), label: "B", raw: n };
-    if (n >= 1_000_000) return { value: (n / 1_000_000).toFixed(2), label: "M", raw: n };
-    if (n >= 1_000) return { value: (n / 1_000).toFixed(1), label: "K", raw: n };
+    if (n >= 1_000_000_000)
+        return { value: (n / 1_000_000_000).toFixed(2), label: "B", raw: n };
+    if (n >= 1_000_000)
+        return { value: (n / 1_000_000).toFixed(2), label: "M", raw: n };
+    if (n >= 1_000)
+        return { value: (n / 1_000).toFixed(1), label: "K", raw: n };
     return { value: String(n), label: "", raw: n };
 }
 
@@ -98,6 +101,7 @@ export function formatTimestamp(
 }
 
 export function shortString(s: string, head = 6, tail = 0): string {
+    if (s.length <= head) return s;
     return s.slice(0, head) + "..." + (tail > 0 ? s.slice(-tail) : "");
 }
 
@@ -105,4 +109,17 @@ export function formatTtl(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
     if (ms < 60_000) return `${ms / 1000}s`;
     return `${ms / 60_000}m`;
+}
+
+export function formatApy(apy: number | null | undefined): IotaFormatResult {
+    if (apy == null) return { value: "—", label: "%", raw: 0 };
+    return { value: apy.toFixed(2), label: "%", raw: apy };
+}
+
+export function formatCommissionRate(
+    rate: number | null | undefined
+): IotaFormatResult {
+    if (rate == null) return { value: "—", label: "%", raw: 0 };
+    const pct = rate / 100;
+    return { value: pct.toFixed(2), label: "%", raw: pct };
 }

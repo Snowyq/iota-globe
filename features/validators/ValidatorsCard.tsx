@@ -1,6 +1,6 @@
 "use client";
 
-import { InnerLink } from "@/components/InnerLink";
+import { SiteLink } from "@/components/SiteLink";
 import { Stat } from "@/components/Stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
@@ -22,7 +22,7 @@ export function ValidatorsCard({ className }: { className?: string }) {
         <Card className={cn(className)}>
             <CardHeader className="flex w-full items-baseline justify-between">
                 <CardTitle>Validators</CardTitle>
-                <InnerLink href={"/validators"} label="View all" />
+                <SiteLink href={"/validators"} label="View all" />
             </CardHeader>
             <CardContent className="flex items-center gap-4">
                 <div className="flex min-w-15 flex-1 justify-center">
@@ -55,14 +55,6 @@ export function ValidatorsCard({ className }: { className?: string }) {
                         label="Countries"
                     />
                 </div>
-                {/* <div className="flex flex-col">
-                        <Stat size={"sm"} value={cities.size} label="Cities" />
-                        <Stat
-                            size={"sm"}
-                            value={countries.size}
-                            label="Countries"
-                        />
-                    </div> */}
             </CardContent>
         </Card>
     );

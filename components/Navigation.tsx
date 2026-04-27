@@ -33,10 +33,11 @@ export default function Navigation() {
 
     return (
         <header
+            id="site-nav"
             ref={navRef}
             className={cn(
                 "fixed inset-x-2 top-0 z-50 flex justify-center transition-[padding] duration-500 ease-in-out",
-                isFullscreen ? "pt-0" : "pt-2"
+                isFullscreen ? "inset-x-0 pt-0" : "pt-2"
             )}
         >
             <nav

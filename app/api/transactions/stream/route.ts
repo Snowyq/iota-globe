@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
                     if (!tx.digest || seen.has(tx.digest)) continue;
                     seen.add(tx.digest);
 
-                    const sender = tx.transaction?.data.sender ?? SYSTEM_ADDRESS;
+                    const sender =
+                        tx.transaction?.data.sender ?? SYSTEM_ADDRESS;
                     const kind = tx.transaction?.data.transaction;
                     const gas = tx.effects?.gasUsed;
 
@@ -79,14 +80,18 @@ export async function GET(request: NextRequest) {
             };
 
             try {
-                lastSeq = Number(await client.getLatestCheckpointSequenceNumber());
+                lastSeq = Number(
+                    await client.getLatestCheckpointSequenceNumber()
+                );
                 await sendCheckpoint(lastSeq - 1);
                 await sendCheckpoint(lastSeq);
             } catch {}
 
             const interval = setInterval(async () => {
                 try {
-                    const latest = Number(await client.getLatestCheckpointSequenceNumber());
+                    const latest = Number(
+                        await client.getLatestCheckpointSequenceNumber()
+                    );
                     if (latest <= lastSeq) return;
                     await sendCheckpoint(latest);
                     lastSeq = latest;

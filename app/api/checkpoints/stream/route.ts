@@ -14,7 +14,8 @@ export type CheckpointStreamItem = {
 };
 
 export async function GET(request: NextRequest) {
-    const datasetParam = request.nextUrl.searchParams.get("dataset") ?? "testnet";
+    const datasetParam =
+        request.nextUrl.searchParams.get("dataset") ?? "testnet";
     if (!(datasetParam in datasets))
         return new Response("Invalid dataset", { status: 400 });
 
@@ -27,17 +28,20 @@ export async function GET(request: NextRequest) {
     const stream = new ReadableStream({
         async start(controller) {
             const send = (item: CheckpointStreamItem) =>
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\n\n`));
+                controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(item)}\n\n`)
+                );
 
             let lastSeq = -1;
 
             // Initial load: send last INITIAL_COUNT checkpoints oldest→newest
             try {
-                const latest = Number(await client.getLatestCheckpointSequenceNumber());
+                const latest = Number(
+                    await client.getLatestCheckpointSequenceNumber()
+                );
                 lastSeq = latest;
-                const seqs = Array.from(
-                    { length: INITIAL_COUNT },
-                    (_, i) => Math.max(0, latest - (INITIAL_COUNT - 1 - i))
+                const seqs = Array.from({ length: INITIAL_COUNT }, (_, i) =>
+                    Math.max(0, latest - (INITIAL_COUNT - 1 - i))
                 );
                 const checkpoints = await Promise.all(
                     seqs.map((s) => client.getCheckpoint({ id: String(s) }))
@@ -51,19 +55,26 @@ export async function GET(request: NextRequest) {
                     });
                 }
             } catch {
-                /* best-effort */
+                // best effort
             }
 
-            // Poll for new checkpoints — fetch ALL missed ones, advance lastSeq by what we fetched
+            // Polling for new checkpoints
             const poll = async () => {
                 try {
-                    const latest = Number(await client.getLatestCheckpointSequenceNumber());
+                    const latest = Number(
+                        await client.getLatestCheckpointSequenceNumber()
+                    );
                     if (latest <= lastSeq) return;
 
                     const count = Math.min(latest - lastSeq, 20);
-                    const newSeqs = Array.from({ length: count }, (_, i) => lastSeq + 1 + i);
+                    const newSeqs = Array.from(
+                        { length: count },
+                        (_, i) => lastSeq + 1 + i
+                    );
                     const checkpoints = await Promise.all(
-                        newSeqs.map((s) => client.getCheckpoint({ id: String(s) }))
+                        newSeqs.map((s) =>
+                            client.getCheckpoint({ id: String(s) })
+                        )
                     );
                     for (const cp of checkpoints) {
                         send({
@@ -75,7 +86,7 @@ export async function GET(request: NextRequest) {
                     }
                     lastSeq += count;
                 } catch {
-                    /* best-effort */
+                    // best effort
                 }
             };
 
@@ -91,7 +102,7 @@ export async function GET(request: NextRequest) {
         headers: {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
+            Connection: "keep-alive",
         },
     });
 }

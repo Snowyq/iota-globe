@@ -35,9 +35,10 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
         openClusterId,
         setOpenClusterId,
     } = useContext(GlobeContext);
-    const open = openClusterId === cluster.id;
 
+    // marker combined
     const wrapperRef = useRef<HTMLDivElement>(null);
+    // multi-validator cluster panel
     const panelRef = useRef<HTMLDivElement>(null);
 
     const setOpen = useCallback(
@@ -45,6 +46,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
         [cluster.id, setOpenClusterId]
     );
 
+    // get validator data for all validators in the cluster
     const clusterValidators = useMemo(
         () =>
             validators.filter((v) =>
@@ -53,11 +55,13 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
         [validators, cluster.validators]
     );
 
+    const isOpen = openClusterId === cluster.id;
     const isSingle = cluster.count === 1;
     const isSelected =
         !!selectedValidator &&
         cluster.validators.includes(selectedValidator.iotaAddress);
 
+    //  pass scroll events to globe when scrolled on marker (defualt scroll page down)
     useEffect(() => {
         const el = wrapperRef.current;
         if (!el) return;
@@ -90,22 +94,18 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
             panel.removeEventListener("wheel", handler, { capture: true });
     }, []);
 
+    // close cluster panel when selected validator gets out of the cluster
     useEffect(() => {
         if (
-            open &&
+            isOpen &&
             selectedValidator &&
             !cluster.validators.includes(selectedValidator.iotaAddress)
         ) {
             setOpen(false);
         }
-    }, [selectedValidator, open, cluster.validators, setOpen]);
+    }, [selectedValidator, isOpen, cluster.validators, setOpen]);
 
-    useEffect(() => {
-        const globeWrapper = wrapperRef.current?.parentElement?.parentElement;
-        if (!globeWrapper) return;
-        globeWrapper.style.zIndex = isSelected || open ? "9999" : "";
-    }, [isSelected, open]);
-
+    // close cluster when click outside marker and inside globe canvas
     useGlobeClickOutside(
         wrapperRef,
         () => {
@@ -113,7 +113,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
             deselectValidator?.();
             startSpinning();
         },
-        isSelected || open
+        isSelected || isOpen
     );
 
     const handleSingleClick = (e: React.MouseEvent) => {
@@ -124,7 +124,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
 
     const handleClusterClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (open) {
+        if (isOpen) {
             setOpen(false);
             return;
         }
@@ -145,6 +145,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
         [selectValidator, clusterValidators, moveGlobeTo, setOpen]
     );
 
+    //
     if (isSingle && !clusterValidators[0]) return null;
 
     return (
@@ -154,10 +155,10 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
             className="relative"
             style={{ transform: "translateZ(0)", touchAction: "manipulation" }}
         >
-            {isSelected && selectedValidator && !open && (
+            {isSelected && selectedValidator && !isOpen && (
                 <SelectedMarker validator={selectedValidator} />
             )}
-            {!isSingle && open && (
+            {!isSingle && isOpen && (
                 <ClusterPanel
                     validators={clusterValidators}
                     selectedAddress={selectedValidator?.iotaAddress}
@@ -168,14 +169,15 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
             <div
                 className={cn(
                     "flex cursor-pointer gap-2 rounded-full border-2 border-border/20 px-2 py-0.5 backdrop-blur-md transition-colors lg:px-3 lg:py-1",
-                    !isSelected && !open && "bg-card/70",
-                    (isSelected || open) &&
+                    !isSelected && !isOpen && "bg-card/70",
+                    (isSelected || isOpen) &&
                         "border-foreground/30 bg-primary/50!"
                 )}
                 onClick={isSingle ? handleSingleClick : handleClusterClick}
             >
                 {isSingle ? (
                     <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={clusterValidators[0].payload.imageUrl}
                             alt={clusterValidators[0].payload.name}
@@ -193,7 +195,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
                     <span
                         className={cn(
                             "text-muted-foreground",
-                            (isSelected || open) && "text-foreground"
+                            (isSelected || isOpen) && "text-foreground"
                         )}
                     >
                         {cluster.count}
@@ -223,6 +225,7 @@ function SelectedMarker({ validator }: { validator: ValidatorResponseItem }) {
                 <div className="flex w-full flex-col items-center gap-2">
                     {validator.payload.imageUrl && (
                         <div className="">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={validator.payload.imageUrl}
                                 alt={validator.payload.name}

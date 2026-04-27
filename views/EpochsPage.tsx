@@ -70,6 +70,7 @@ export default function EpochsPage() {
 
         const url = `/api/epochs?dataset=${network}${cursor ? `&cursor=${cursor}` : ""}`;
 
+        // eslint-disable-next-line
         setIsLoading(true);
         fetch(url)
             .then((r) => r.json() as Promise<EpochsApiResponse>)
