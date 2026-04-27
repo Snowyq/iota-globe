@@ -27,11 +27,10 @@ export default function OptionsContextProvider({
 }) {
     const [network, setNetwork] = useState<"mainnet" | "testnet">("testnet");
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [canUseFullscreen, setCanUseFullscreen] = useState(
-        typeof window !== "undefined" ? window.innerWidth >= FULLSCREEN_MIN_WIDTH : false
-    );
+    const [canUseFullscreen, setCanUseFullscreen] = useState(false);
 
     useEffect(() => {
+        setCanUseFullscreen(window.innerWidth >= FULLSCREEN_MIN_WIDTH);
         const observer = new ResizeObserver(([entry]) => {
             const wide = entry.contentRect.width >= FULLSCREEN_MIN_WIDTH;
             setCanUseFullscreen(wide);

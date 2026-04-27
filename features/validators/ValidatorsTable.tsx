@@ -1,6 +1,7 @@
 "use client";
 
 import { FormattedCell } from "@/components/FormattedCell";
+import { TableHeaderCell } from "@/components/TableHeaderCell";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     Table,
@@ -12,9 +13,9 @@ import {
 } from "@/components/ui/table";
 import { GlobeContext } from "@/features/globe/GlobeContext";
 import { formatIota } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { memo, useCallback, useContext, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Validator, ValidatorsContext } from "./ValidatorsContext";
 
 type SortKey =
@@ -66,6 +67,7 @@ export default function ValidatorsTable({
     const { validators, isLoading, selectValidator } =
         useContext(ValidatorsContext);
     const { moveGlobeTo } = useContext(GlobeContext);
+    const router = useRouter();
     const [sortKey, setSortKey] = useState<SortKey>("stake");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -104,9 +106,9 @@ export default function ValidatorsTable({
                 const { lat, lon } = validator.geo;
                 setTimeout(() => moveGlobeTo(lat, lon, 0.8), 0);
             }
-            setTimeout(() => window.scrollTo({ top: 0 }), 50);
+            router.push(`/validators/${validator.iotaAddress}`);
         },
-        [selectValidator, moveGlobeTo]
+        [selectValidator, moveGlobeTo, router]
     );
 
     return (
@@ -116,39 +118,15 @@ export default function ValidatorsTable({
                 <TableRow className="hover:bg-transparent!">
                     {COLUMNS.map(({ key, label, align }) => {
                         const active = sortKey === key;
-                        const Icon = active
-                            ? sortDir === "asc"
-                                ? ArrowUp
-                                : ArrowDown
-                            : ArrowUpDown;
                         return (
-                            <TableCell
+                            <TableHeaderCell
                                 key={key}
+                                label={label}
+                                align={align}
+                                icon={active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown}
+                                iconActive={active}
                                 onClick={() => handleSort(key)}
-                                className={cn(
-                                    "cursor-pointer text-xs text-muted-foreground select-none",
-                                    align === "center" && "text-center",
-                                    align === "right" && "text-right"
-                                )}
-                            >
-                                <span
-                                    className={cn(
-                                        "flex items-center gap-1 text-wrap",
-                                        align === "center" && "justify-center",
-                                        align === "right" && "justify-end"
-                                    )}
-                                >
-                                    {label}
-                                    <Icon
-                                        className={cn(
-                                            "h-3 w-3",
-                                            active
-                                                ? "text-foreground"
-                                                : "opacity-40"
-                                        )}
-                                    />
-                                </span>
-                            </TableCell>
+                            />
                         );
                     })}
                 </TableRow>

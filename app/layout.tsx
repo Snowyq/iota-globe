@@ -36,7 +36,7 @@ export default function RootLayout({
                 loraHeading.variable
             )}
         >
-            <body>
+            <body suppressHydrationWarning>
                 {/* Context Providers hell */}
                 <OptionsContextProvider>
                     <NetworkContextProvider>

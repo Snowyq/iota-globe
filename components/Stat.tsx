@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Copy } from "lucide-react";
+import { Button } from "./ui/button";
 
 const statVariants = cva("flex flex-col", {
     variants: {
@@ -49,6 +51,25 @@ const labelVariants = cva("text-muted-foreground", {
     defaultVariants: { size: "default" },
 });
 
+const innerClassVariants = cva("flex items-baseline gap-1", {
+    variants: {
+        size: {
+            xs: "gap-1",
+            sm: "gap-1",
+            default: "gap-2",
+            lg: "gap-2",
+        },
+    },
+    defaultVariants: { size: "default" },
+});
+
+const ICON_BTN_SIZES = {
+    xs: "icon-xs",
+    sm: "icon-sm",
+    default: "icon",
+    lg: "icon-lg",
+} as const;
+
 export function Stat({
     value,
     label,
@@ -56,18 +77,31 @@ export function Stat({
     size,
     className,
     innerClassName,
+    withCopy,
 }: {
     value: React.ReactNode;
     label?: string;
     sub?: string;
     className?: string;
     innerClassName?: string;
+    withCopy?: boolean;
 } & VariantProps<typeof statVariants>) {
     return (
         <div className={cn(statVariants({ size }), className)}>
-            <div className={cn("flex items-baseline gap-1", innerClassName)}>
+            <div className={cn(innerClassVariants({ size }), innerClassName)}>
                 <span className={valueVariants({ size })}>{value ?? "—"}</span>
                 {sub && <span className={subVariants({ size })}>{sub}</span>}
+                {withCopy && (
+                    <Button
+                        onClick={() =>
+                            navigator.clipboard.writeText(String(value))
+                        }
+                        variant={"ghost"}
+                        size={size ? ICON_BTN_SIZES[size] : "icon"}
+                    >
+                        <Copy />
+                    </Button>
+                )}
             </div>
             {label && <span className={labelVariants({ size })}>{label}</span>}
         </div>

@@ -7,10 +7,7 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
     return (
-        <ScrollArea
-            data-slot="table-container"
-            className="relative w-full"
-        >
+        <ScrollArea data-slot="table-container" className="relative w-full">
             <table
                 data-slot="table"
                 className={cn("w-full caption-bottom text-sm", className)}
@@ -35,7 +32,10 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
     return (
         <tbody
             data-slot="table-body"
-            className={cn("[&_tr:last-child]:border-0", className)}
+            className={cn(
+                "[word-spacing:-5px] [&_tr:last-child]:border-0",
+                className
+            )}
             {...props}
         />
     );
