@@ -9,13 +9,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
 import { formatIota, formatNanoToIota, shortString } from "@/lib/format";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useContext } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useContext, useEffect } from "react";
 
 export default function ValidatorDetailPage() {
-    const { isLoading, selectedValidator } = useContext(ValidatorsContext);
+    const { id } = useParams<{ id: string }>();
+    const { isLoading, validators, selectedValidator, selectValidator } =
+        useContext(ValidatorsContext);
     const router = useRouter();
+
+    // Select from URL param only on initial load when nothing is selected yet
+    useEffect(() => {
+        if (selectedValidator || !validators.length) return;
+        selectValidator?.(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [validators.length]);
+
+    // Sync URL when selected validator changes while on this page
+    useEffect(() => {
+        if (!selectedValidator) return;
+        if (selectedValidator.iotaAddress !== id) {
+            router.replace(`/validators/${selectedValidator.iotaAddress}`);
+        }
+    }, [selectedValidator?.iotaAddress]);
 
     useOnNetworkChange(() => {
         if (!isLoading && !selectedValidator) {
@@ -27,13 +43,19 @@ export default function ValidatorDetailPage() {
         return (
             <Page>
                 <div className="mx-auto pt-16 text-center">
-                    <p className="">Click on globe marker</p>
+                    <p className="text-sm text-muted-foreground">
+                        Click on globe marker
+                    </p>
                     <span className="block py-4 text-sm text-muted-foreground">
                         or
                     </span>
-                    <Link href="/validators" className="">
-                        Browse list of validators
-                    </Link>
+                    <InnerLink
+                        className="mb-3 gap-2 text-base text-foreground"
+                        href="/validators"
+                        arrowPosition="left"
+                        arrowClassName="h-5 w-5"
+                        label="Go back to validators list"
+                    />
                 </div>
             </Page>
         );
@@ -68,7 +90,7 @@ export default function ValidatorDetailPage() {
             : "—";
 
     return (
-        <Page className="gap-6">
+        <Page className="gap-4!">
             <div>
                 <PageHeader
                     title={payload.name}
@@ -80,7 +102,7 @@ export default function ValidatorDetailPage() {
                 />
                 {payload.projectUrl && (
                     <InnerLink
-                        className="mt-2"
+                        className="mt-2 text-base"
                         href={validator.payload.projectUrl}
                         label={validator.payload.projectUrl?.replace(
                             /^https?:\/\//,
@@ -95,7 +117,7 @@ export default function ValidatorDetailPage() {
                 <CardHeader>
                     <CardTitle>Current Epoch</CardTitle>
                 </CardHeader>
-                <CardContent className="grid w-full grid-cols-2 items-center justify-center gap-4 @[25rem]:grid-cols-3">
+                <CardContent className="grid w-full grid-cols-2 items-center justify-center gap-4 @[25rem]:grid-cols-3 @[48rem]:grid-cols-5">
                     <Stat value={apyFormatted} label="APY" />
                     <Stat value={commission} label="Commission" />
                     <Stat value={votingPower} label="Voting Power" />

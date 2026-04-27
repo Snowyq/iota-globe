@@ -30,8 +30,7 @@ function Row({
     return (
         <div
             className={cn(
-                "flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs transition-colors",
-                fresh ? "bg-primary/10" : "hover:bg-muted/40"
+                "flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs transition-colors"
             )}
         >
             {children}
@@ -165,9 +164,7 @@ export function NetworkLiveCard({ className }: { className?: string }) {
     const [tab, setTab] = useState("transactions");
 
     return (
-        <Card
-            className={cn("flex max-h-96 flex-col overflow-hidden", className)}
-        >
+        <Card className={cn("flex flex-col overflow-hidden", className)}>
             <CardHeader className="shrink-0 pb-0">
                 <CardTitle>Live Activity</CardTitle>
                 <div className="flex items-center justify-between gap-2">

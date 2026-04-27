@@ -11,7 +11,7 @@ import { NetworkContext } from "./NetworkContext";
 
 export function TpsCard({
     className,
-    max = 30,
+    max = 45,
 }: {
     className?: string;
     max?: number;
@@ -41,18 +41,19 @@ export function TpsCard({
     //     : null;
 
     return (
-        <Card size="sm" className={cn("flex justify-center", className)}>
-            <CardContent className="relative flex items-center gap-2">
-                <div className="absolute inset-y-0 left-0 flex flex-col justify-center bg-linear-to-r from-card to-card/0 pr-4 pl-6">
-                    <CardTitle>TPS</CardTitle>
-                    <Stat
-                        value={Number(currentTps).toFixed(0)}
-                        sub="tx/s"
-                        className="min-w-30"
-                    />
-                </div>
-                <div className="flex w-full flex-col justify-center gap-1 py-1">
-                    <div className="flex h-20 items-end gap-px">
+        <Card className={cn("flex justify-center", className)}>
+            <div className="absolute inset-y-0 left-0 z-10 flex flex-col justify-center bg-linear-to-r from-card/50 to-card/0 pr-4 pl-6">
+                <CardTitle>TPS</CardTitle>
+                <Stat
+                    value={Number(currentTps).toFixed(0)}
+                    size={"lg"}
+                    sub="tx/s"
+                    className="min-w-30"
+                />
+            </div>
+            <CardContent className="relative flex h-full items-center gap-2">
+                <div className="flex h-full w-full flex-col justify-center gap-1 py-1">
+                    <div className="flex h-full min-h-20 items-end gap-px">
                         {Array.from({ length: fillerCount }).map((_, i) => (
                             // required to fill empty space
                             <div key={`f-${i}`} className="flex-1" />

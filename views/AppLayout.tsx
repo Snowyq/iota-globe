@@ -60,7 +60,7 @@ function GlobeWithControls({
                 className={cn(
                     "absolute inset-0 overflow-hidden after:pointer-events-none md:bottom-auto md:h-dvh md:overflow-visible",
                     !panelFullscreen &&
-                        "after:absolute after:inset-x-0 after:bottom-0 after:h-[15vh] after:max-h-200 after:bg-linear-to-b after:from-background/0 after:via-background/90 after:via-50% after:to-background after:[content:''] after:sm:h-[45vh]"
+                        "after:absolute after:inset-x-0 after:bottom-0 after:h-[10vh] after:max-h-200 after:bg-linear-to-b after:from-background/0 after:via-background/50 after:via-50% after:to-background after:[content:''] after:md:h-[45vh] after:md:via-background/90"
                 )}
             >
                 <GlobeNoSSR
@@ -72,7 +72,12 @@ function GlobeWithControls({
             </div>
 
             <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--nav-height)+2rem)] bottom-0 z-20">
-                <GlobeOptions className="pointer-events-auto absolute right-4 flex-col sm:right-5 xl:right-10" />
+                <GlobeOptions className={cn(
+                    "pointer-events-auto absolute flex-col",
+                    panelFullscreen
+                        ? "right-4 sm:right-5"
+                        : "right-4 sm:right-5 xl:right-10"
+                )} />
             </div>
         </div>
     );
@@ -106,7 +111,7 @@ function PagePanel({
                               ? "w-100"
                               : "w-200 bg-background/50 backdrop-blur-xs"
                       )
-                    : "relative w-full"
+                    : "relative w-full max-md:-mt-20"
             )}
         >
             {panelFullscreen ? (
