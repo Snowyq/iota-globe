@@ -3,7 +3,7 @@ import { IotaClient } from "@iota/iota-sdk/client";
 import { unstable_cache } from "next/cache";
 import { type NextRequest } from "next/server";
 
-const PAGE_SIZE = 20;
+export const PAGE_SIZE = 20;
 
 export type EpochRow = {
     epoch: string;

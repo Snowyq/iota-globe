@@ -43,18 +43,24 @@ interface GlobeContextValue {
     onGlobeReady: (methods: GlobeMethods) => void;
     moveGlobeTo: (lat: number, lng: number, altitude?: number) => void;
     zoomGlobe: (deltaY: number) => void;
+    startSpinning: () => void;
     resetGlobe: () => void;
     getCanvas: () => HTMLCanvasElement | null;
     geoPoints: GlobePoint[];
+    openClusterId: string | null;
+    setOpenClusterId: (id: string | null) => void;
 }
 
 export const GlobeContext = createContext<GlobeContextValue>({
     onGlobeReady: () => {},
     moveGlobeTo: () => {},
     zoomGlobe: () => {},
+    startSpinning: () => {},
     resetGlobe: () => {},
     getCanvas: () => null,
     geoPoints: [],
+    openClusterId: null,
+    setOpenClusterId: () => {},
 });
 
 export default function GlobeContextProvider({
@@ -65,8 +71,10 @@ export default function GlobeContextProvider({
     const { network } = useContext(OptionsContext);
     const globeMethodsRef = useRef<GlobeMethods | undefined>(undefined);
     const returnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastMoveAtRef = useRef(0);
     const geoSigRef = useRef("");
     const [geoPoints, setGeoPoints] = useState<GlobePoint[]>([]);
+    const [openClusterId, setOpenClusterId] = useState<string | null>(null);
 
     useEffect(() => {
         // eslint-disable-next-line
@@ -112,10 +120,12 @@ export default function GlobeContextProvider({
                 returnTimeoutRef.current = null;
             }
 
+            lastMoveAtRef.current = Date.now();
+
             try {
                 methods.controls().autoRotate = false;
             } catch {
-                /* Safari */
+                // Safari
             }
             const targetAltitude = altitude ?? methods.pointOfView().altitude;
             methods.pointOfView({ lat, lng, altitude: targetAltitude }, 1000);
@@ -144,19 +154,28 @@ export default function GlobeContextProvider({
         []
     );
 
+    const startSpinning = useCallback(() => {
+        try {
+            if (globeMethodsRef.current)
+                globeMethodsRef.current.controls().autoRotate = true;
+        } catch {}
+    }, []);
+
     const resetGlobe = useCallback(() => {
         if (returnTimeoutRef.current !== null) {
             clearTimeout(returnTimeoutRef.current);
         }
 
+        const scheduledAt = Date.now();
         returnTimeoutRef.current = setTimeout(() => {
+            if (lastMoveAtRef.current > scheduledAt) return;
             const methods = globeMethodsRef.current;
             if (!methods) return;
             methods.pointOfView(HOME_POV, 1500);
             try {
                 methods.controls().autoRotate = true;
             } catch {
-                /* Safari */
+                // Safari boom
             }
             returnTimeoutRef.current = null;
         }, RETURN_DELAY_MS);
@@ -168,9 +187,12 @@ export default function GlobeContextProvider({
                 onGlobeReady,
                 moveGlobeTo,
                 zoomGlobe,
+                startSpinning,
                 resetGlobe,
                 getCanvas,
                 geoPoints,
+                openClusterId,
+                setOpenClusterId,
             }}
         >
             {children}

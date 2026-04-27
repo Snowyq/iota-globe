@@ -3,7 +3,7 @@
 }
 
 @utility section {
-    @apply mx-auto flex w-full flex-col overflow-x-hidden section-padding max-sm:w-full sm:container sm:max-w-6xl;
+    @apply mx-auto flex w-full flex-col overflow-x-hidden section-padding max-sm:w-full sm:container lg:max-w-6xl;
 }
 
 @utility section-header {

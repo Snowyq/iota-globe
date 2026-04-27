@@ -11,10 +11,8 @@ export function useClickOutside(
         if (!enabled) return;
         const handler = (e: MouseEvent) => {
             const target = e.target as Element;
-            if (!target.isConnected) return; // target removed from DOM before event reached document
+            if (!target.isConnected) return;
             if (!ref.current || ref.current.contains(target)) return;
-            // works with radix UI popover on glboe
-            if (target.closest("[data-radix-popper-content-wrapper]")) return;
             callback();
         };
         document.addEventListener("click", handler);

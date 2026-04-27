@@ -27,13 +27,13 @@ export function FormattedCell({
         >
             <div
                 className={cn(
-                    "flex",
+                    "flex [word-spacing:-5px]",
                     labelPosition === "top" && "flex-col-reverse",
                     labelPosition === "bottom" && "flex-col gap-1",
                     labelPosition === "left" &&
-                        "flex-row-reverse items-baseline gap-2",
+                        "flex-row-reverse items-baseline gap-1",
                     labelPosition === "right" &&
-                        "flex-row items-baseline gap-2",
+                        "flex-row items-baseline gap-1",
                     align === "center" && "justify-center",
                     align === "right" && "justify-end"
                 )}

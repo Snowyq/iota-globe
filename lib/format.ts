@@ -1,6 +1,6 @@
 const NANO = 1_000_000_000;
 
-export type IotaFormatResult = { value: string; label: string };
+export type IotaFormatResult = { value: string; label: string; raw: number };
 
 export function formatNumber(n: number): string {
     if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
@@ -9,33 +9,35 @@ export function formatNumber(n: number): string {
     return String(n);
 }
 
-export function formatIota(n: number, prefix = true): IotaFormatResult {
+export function formatIota(n: number, prefix = true, decimals = 2): IotaFormatResult {
     const u = prefix ? " IOTA" : "";
     if (n >= 1_000_000_000) {
-        return { value: (n / 1_000_000_000).toFixed(2), label: `B${u}` };
+        return { value: (n / 1_000_000_000).toFixed(decimals), label: `B${u}`, raw: n };
     }
     if (n >= 1_000_000) {
-        return { value: (n / 1_000_000).toFixed(2), label: `M${u}` };
+        return { value: (n / 1_000_000).toFixed(decimals), label: `M${u}`, raw: n };
     }
     if (n >= 1_000) {
-        return { value: (n / 1_000).toFixed(2), label: `K${u}` };
+        return { value: (n / 1_000).toFixed(decimals), label: `K${u}`, raw: n };
     }
-    return { value: n.toFixed(2), label: prefix ? "IOTA" : "" };
+    return { value: n.toFixed(decimals), label: prefix ? "IOTA" : "", raw: n };
 }
 
 export function formatNanoToIota(
     nano: string | null | undefined,
-    prefix = true
+    prefix = true,
+    decimals = 2
 ): IotaFormatResult {
-    if (!nano) return { value: "—", label: "" };
-    return formatIota(Number(BigInt(nano)) / NANO, prefix);
+    if (!nano) return { value: "—", label: "", raw: 0 };
+    return formatIota(Number(BigInt(nano)) / NANO, prefix, decimals);
 }
 
 export function formatIotaNano(
     nano: string | null | undefined
 ): IotaFormatResult {
-    if (!nano) return { value: "—", label: "" };
-    return { value: Number(nano).toLocaleString(), label: "nanos" };
+    if (!nano) return { value: "—", label: "", raw: 0 };
+    const n = Number(nano);
+    return { value: n.toLocaleString(), label: "nanos", raw: n };
 }
 
 export function formatDuration(ms: number): string {

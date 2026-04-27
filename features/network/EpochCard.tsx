@@ -13,9 +13,11 @@ import { formatDuration, formatTimestamp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Clock } from "lucide-react";
 import { useContext, useState } from "react";
+import { OptionsContext } from "../options/OptionsContext";
 
 export function EpochCard({ className }: { className?: string }) {
     const { networkStats } = useContext(ValidatorsContext);
+    const { isFullscreen } = useContext(OptionsContext);
     const now = useNowTime();
     const [showEnd, setShowEnd] = useState(false);
 
@@ -38,21 +40,31 @@ export function EpochCard({ className }: { className?: string }) {
     );
 
     return (
-        <Card size="sm" className={cn("flex-row", className)}>
-            <CardContent className="flex flex-col gap-3">
-                <div className="flex flex-row gap-6">
+        <Card
+            size="sm"
+            className={cn(
+                "flex w-full flex-row gap-1! border-2 border-primary bg-primary/50 shadow-primary backdrop-blur-md sm:gap-0!",
+                className
+            )}
+        >
+            <CardContent
+                className={cn(
+                    "flex w-full flex-col justify-between gap-2 sm:flex-row sm:gap-6",
+                    isFullscreen && "flex-col!"
+                )}
+            >
+                <div className="flex flex-col gap-1 max-xs:justify-between">
                     <CardTitle className="w-fit text-nowrap">
                         {networkStats
                             ? `Epoch #${networkStats.epoch}`
                             : "Epoch"}
                     </CardTitle>
-                    <CardDescription className="flex flex-col text-xs text-nowrap text-primary-foreground">
-                        <span>Started: </span>
-                        <span>{startedAt}</span>
+                    <CardDescription className="flex flex-col text-xs text-nowrap text-foreground">
+                        <span>Started: {startedAt}</span>
                     </CardDescription>
                 </div>
-                <div className="flex min-w-48 flex-col gap-1.5 rounded-lg bg-primary/40 px-2 py-1.5">
-                    <div className="flex items-center justify-between text-xs">
+                <div className="flex min-w-64 flex-col justify-center gap-1.5 rounded-lg bg-primary/40 px-2 py-2">
+                    <div className="flex items-baseline justify-between text-xs">
                         <Button
                             onClick={() => setShowEnd((v) => !v)}
                             variant={"outline"}
@@ -67,7 +79,7 @@ export function EpochCard({ className }: { className?: string }) {
                             {showEnd
                                 ? formatTimestamp(endMs, "long")
                                 : remainingMs !== null
-                                  ? formatDuration(remainingMs, "short")
+                                  ? formatDuration(remainingMs)
                                   : "—"}
                         </span>
                     </div>
