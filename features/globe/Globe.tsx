@@ -3,7 +3,10 @@
 import earthDarkTexture from "@/assets/earth-dark.jpg";
 import landTopology from "@/assets/land_10m.json";
 import texture from "@/assets/Textures.jpg";
-import { ARC_MID_COLOR, CustomLayerDatum } from "@/features/globe/customLayerData";
+import {
+    ARC_MID_COLOR,
+    CustomLayerDatum,
+} from "@/features/globe/customLayerData";
 import { GlobeContext } from "@/features/globe/GlobeContext";
 import { randomInt } from "@/lib/math";
 import { cn } from "@/lib/utils";
@@ -48,7 +51,6 @@ type GlobeProps = {
 };
 
 type ClusterPoint = ValidatorCluster;
-
 
 const INITIAL_ALTITUDE = 3;
 const CLUSTER_BUBBLE_ALTITUDE = 0.06;
@@ -360,22 +362,6 @@ function buildStableArcs(
     return arcs;
 }
 
-function createCustomLayerData(
-    stars: typeof backgroundStars,
-    locations: RandomLocationDatum[]
-): CustomLayerDatum[] {
-    const surfaceStars = locations.map((loc, i) => ({
-        kind: "star" as const,
-        lat: Number(loc.lat),
-        lng: Number(loc.lng),
-        altitude: 0.01,
-        size: 0.1 + (i % 7) * 0.008,
-        color: ARC_MID_COLOR,
-    }));
-
-    return [{ kind: "mesh" }, ...surfaceStars, ...backgroundStars];
-}
-
 function createMesh() {
     const group = new THREE.Group();
     group.add(
@@ -384,7 +370,7 @@ function createMesh() {
             new THREE.MeshBasicMaterial({
                 color: new THREE.Color("#1a4080"),
                 transparent: true,
-                opacity: 0.35,
+                opacity: 0.15,
                 depthWrite: false,
             })
         )
