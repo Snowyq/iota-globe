@@ -89,7 +89,10 @@ export default function EpochsPage() {
 
     return (
         <Page className="">
-            <PageHeader title="Epochs" description="Recent epoch statistics" />
+            <PageHeader
+                title="Epochs"
+                description="Browse IOTA epoch history"
+            />
 
             <Table className="w-full">
                 <TableCaption>IOTA epoch history.</TableCaption>

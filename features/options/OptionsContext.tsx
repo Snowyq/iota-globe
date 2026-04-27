@@ -31,7 +31,7 @@ export default function OptionsContextProvider({
 }: {
     children: React.ReactNode;
 }) {
-    const [network, setNetwork] = useState<"mainnet" | "testnet">("testnet");
+    const [network, setNetwork] = useState<"mainnet" | "testnet">("mainnet");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [canUseFullscreen, setCanUseFullscreen] = useState(false);
 

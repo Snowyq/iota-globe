@@ -69,7 +69,7 @@ export default function ValidatorDetailPage() {
         stats.apyPercent != null ? `${stats.apyPercent.toFixed(2)}` : "—";
     const commission =
         payload.effectiveCommissionRate != null
-            ? `${(Number(payload.effectiveCommissionRate) / 100).toFixed(2)}%`
+            ? `${(Number(payload.effectiveCommissionRate) / 100).toFixed(2)}`
             : "—";
     const votingPower =
         payload.votingPower != null
@@ -163,6 +163,7 @@ export default function ValidatorDetailPage() {
                             size={"sm"}
                             className="text-nowrap!"
                             value={nextEpochCommission}
+                            sub="%"
                             label="Next Epoch Commission"
                         />
                     </CardContent>
