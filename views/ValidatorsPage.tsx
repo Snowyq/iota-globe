@@ -32,9 +32,8 @@ export default function ValidatorsPage() {
             <div className="flex flex-col gap-3">
                 <PageHeader
                     title="Validators"
-                    description={`${validators.length} active validators on IOTA`}
+                    description="List of all IOTA validators"
                 />
-
                 <div className="flex flex-col items-center gap-4 @[40rem]:flex-row @[40rem]:items-center @[40rem]:gap-4">
                     <div className="relative w-full min-w-0">
                         <Input

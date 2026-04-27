@@ -5,7 +5,10 @@ import { FormattedCell } from "@/components/FormattedCell";
 import { LiveBadge } from "@/components/LiveBadge";
 import { Page } from "@/components/Page";
 import { PageHeader } from "@/components/PageHeader";
-import { TableHeaderCell, TableHeaderCellProps as ColDef } from "@/components/TableHeaderCell";
+import {
+    TableHeaderCellProps as ColDef,
+    TableHeaderCell,
+} from "@/components/TableHeaderCell";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     Table,
@@ -51,8 +54,8 @@ export default function TransactionsPage() {
         <Page className="">
             <PageHeader
                 title="Transactions"
-                description="Live feed from latest checkpoints"
-                action={<LiveBadge ttl={2_000} />}
+                description="Live stream of recent IOTA transactions"
+                action={<LiveBadge ttl={1_000} />}
             />
 
             <Table className="w-full">
@@ -88,44 +91,48 @@ export default function TransactionsPage() {
                         : txs.map((tx, i) => {
                               const t = timeAgo(tx.timestampMs, now);
                               return (
-                              <TableRow
-                                  key={tx.digest}
-                                  className={cn(
-                                      "text-xs",
-                                      i === 0 && "bg-primary/5"
-                                  )}
-                              >
-                                  <TableCell className="font-mono">
-                                      {shortString(tx.digest, 10, 0)}
-                                  </TableCell>
-                                  <TableCell>
-                                      {tx.isSystem ? (
-                                          <span className="text-muted-foreground italic">
-                                              IOTA System
-                                          </span>
-                                      ) : (
-                                          <span className="font-mono">
-                                              {shortString(tx.sender)}
-                                          </span>
+                                  <TableRow
+                                      key={tx.digest}
+                                      className={cn(
+                                          "text-xs",
+                                          i === 0 && "bg-primary/5"
                                       )}
-                                  </TableCell>
-                                  <FormattedCell
-                                      value={tx.txnsCount}
-                                      label="txns"
-                                      align="center"
-                                  />
-                                  <FormattedCell
-                                      value={tx.gasIOTA > 0 ? tx.gasIOTA.toFixed(4) : null}
-                                      label="IOTA"
-                                      align="right"
-                                  />
-                                  <FormattedCell
-                                      value={t.value}
-                                      label={t.label}
-                                      align="right"
-                                      className="min-w-20"
-                                  />
-                              </TableRow>
+                                  >
+                                      <TableCell className="font-mono">
+                                          {shortString(tx.digest, 10, 0)}
+                                      </TableCell>
+                                      <TableCell>
+                                          {tx.isSystem ? (
+                                              <span className="text-muted-foreground italic">
+                                                  IOTA System
+                                              </span>
+                                          ) : (
+                                              <span className="font-mono">
+                                                  {shortString(tx.sender)}
+                                              </span>
+                                          )}
+                                      </TableCell>
+                                      <FormattedCell
+                                          value={tx.txnsCount}
+                                          label="txns"
+                                          align="center"
+                                      />
+                                      <FormattedCell
+                                          value={
+                                              tx.gasIOTA > 0
+                                                  ? tx.gasIOTA.toFixed(4)
+                                                  : null
+                                          }
+                                          label="IOTA"
+                                          align="right"
+                                      />
+                                      <FormattedCell
+                                          value={t.value}
+                                          label={t.label}
+                                          align="right"
+                                          className="min-w-20"
+                                      />
+                                  </TableRow>
                               );
                           })}
                 </TableBody>

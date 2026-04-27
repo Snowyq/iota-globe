@@ -27,7 +27,7 @@ export default function NetworkActivityCard({
     return (
         <Card className={cn(className)}>
             <CardHeader>
-                <CardTitle>Network Activity</CardTitle>
+                <CardTitle>Network</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
                 <Stat

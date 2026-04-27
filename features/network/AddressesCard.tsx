@@ -18,7 +18,7 @@ export function AddressesCard({ className }: { className?: string }) {
 
     const total = formatNumber(Number(cumulativeAddresses));
     const totalActive = formatNumber(Number(cumulativeActiveAddresses));
-    const dailyActive = formatNumber(Number(dailyActiveAddresses));
+    const dailyActive = Number(dailyActiveAddresses);
 
     return (
         <Card className={cn(className)}>
