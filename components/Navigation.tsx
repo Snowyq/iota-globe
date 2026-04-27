@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useContext, useState } from "react";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { useContext, useRef, useState } from "react";
 import Logo from "./Logo";
 import { Button } from "./ui/button";
 import {
@@ -36,9 +37,12 @@ export default function Navigation() {
     const { network, selectNetwork, isFullscreen } = useContext(OptionsContext);
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
+    const navRef = useRef<HTMLElement>(null);
+    useClickOutside(navRef, () => setOpen(false), open);
 
     return (
         <header
+            ref={navRef}
             className={cn(
                 "fixed inset-x-2 top-0 z-50 flex justify-center transition-[padding] duration-500 ease-in-out",
                 isFullscreen ? "pt-0" : "pt-2"

@@ -26,7 +26,6 @@ const resolveValidatorIp = unstable_cache(
         iotaAddress: string,
         netAddress: string
     ): Promise<{ iotaAddress: string; ip: string | null }> => {
-        // extract host [ignore] /dns/ [take] / [ignore]
         const host = netAddress.match(/\/dns\/([^/]+)/)?.[1] ?? null;
         if (!host) return { iotaAddress, ip: null };
         try {
@@ -37,55 +36,48 @@ const resolveValidatorIp = unstable_cache(
         }
     },
     ["validatorIp"],
-    { revalidate: 60 }
+    { revalidate: 3_600 }
 );
 
-const GEO_TIMEOUT_MS = 4_000;
-
-const resolveIpGeo = unstable_cache(
-    async (ip: string): Promise<Geo | null> => {
+// keyed by sorted IPs so cache key is stable regardless of validator order
+const fetchGeoBatch = unstable_cache(
+    async (ips: string[]): Promise<[string, Geo][]> => {
         try {
-            const res = await fetch(`http://ip-api.com/json/${ip}`, {
-                signal: AbortSignal.timeout(GEO_TIMEOUT_MS),
+            const res = await fetch("http://ip-api.com/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(ips.map((ip) => ({ query: ip }))),
+                signal: AbortSignal.timeout(10_000),
             });
-            if (!res.ok) return null;
-            const data = await res.json();
-            return data.status === "success" ? data : null;
+            if (!res.ok) return [];
+            const data = (await res.json()) as Array<Geo & { status: string }>;
+            return data.filter((item) => item.status === "success").map((item) => [item.query, item]);
         } catch {
-            return null;
+            return [];
         }
     },
-    ["validatorGeo"],
+    ["geoBatch"],
     { revalidate: 3_600 }
 );
 
 export async function getValidatorLocalization(
     validators: IotaValidatorSummary[]
 ): Promise<LocalizedValidator[]> {
-    // Resolve IPS from DNS in parallel
     const withIps = await Promise.all(
         validators.map((v) => resolveValidatorIp(v.iotaAddress, v.netAddress))
     );
 
-    // prepare all IPS for batch lookip
     const ips = [
-        ...new Set(withIps.filter((v) => v.ip !== null).map((v) => v.ip!)),
-    ];
+        ...new Set(
+            withIps.map((v) => v.ip).filter((ip): ip is string => ip !== null)
+        ),
+    ].sort();
 
-    // batch resolving geolocaton parallel
-    const geoEntries = await Promise.all(
-        ips.map(async (ip) => [ip, await resolveIpGeo(ip)] as const)
-    );
+    const geoMap = new Map(await fetchGeoBatch(ips));
 
-    // filtering and mapping geolocation results for easy and predictable access
-    const geoMap = new Map(
-        geoEntries.filter((e): e is [string, Geo] => e[1] !== null)
-    );
-
-    console.log("sending geo");
     return withIps.map((v) => ({
         iotaAddress: v.iotaAddress,
         ip: v.ip,
-        geo: v.ip ? geoMap.get(v.ip) || null : null,
+        geo: v.ip ? (geoMap.get(v.ip) ?? null) : null,
     }));
 }

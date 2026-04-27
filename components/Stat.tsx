@@ -78,6 +78,7 @@ export function Stat({
     className,
     innerClassName,
     withCopy,
+    copyValue,
 }: {
     value: React.ReactNode;
     label?: string;
@@ -85,6 +86,7 @@ export function Stat({
     className?: string;
     innerClassName?: string;
     withCopy?: boolean;
+    copyValue?: string;
 } & VariantProps<typeof statVariants>) {
     return (
         <div className={cn(statVariants({ size }), className)}>
@@ -94,7 +96,7 @@ export function Stat({
                 {withCopy && (
                     <Button
                         onClick={() =>
-                            navigator.clipboard.writeText(String(value))
+                            navigator.clipboard.writeText(copyValue ?? String(value))
                         }
                         variant={"ghost"}
                         size={size ? ICON_BTN_SIZES[size] : "icon"}

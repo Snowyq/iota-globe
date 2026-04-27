@@ -60,7 +60,7 @@ function GlobeWithControls({
                 className={cn(
                     "absolute inset-0 overflow-hidden after:pointer-events-none md:bottom-auto md:h-dvh md:overflow-visible",
                     !panelFullscreen &&
-                        "after:absolute after:inset-x-0 after:bottom-0 after:h-[40vh] after:max-h-200 after:bg-linear-to-b after:from-background/0 after:via-background/90 after:via-50% after:to-background after:[content:''] after:sm:h-[45vh]"
+                        "after:absolute after:inset-x-0 after:bottom-0 after:h-[15vh] after:max-h-200 after:bg-linear-to-b after:from-background/0 after:via-background/90 after:via-50% after:to-background after:[content:''] after:sm:h-[45vh]"
                 )}
             >
                 <GlobeNoSSR

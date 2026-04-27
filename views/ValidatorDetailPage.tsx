@@ -93,29 +93,6 @@ export default function ValidatorDetailPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Identity</CardTitle>
-                </CardHeader>
-                <CardContent className="grid w-full grid-cols-1 gap-4 @[40rem]:grid-cols-3">
-                    <Stat
-                        value={shortString(iotaAddress, 4, 4)}
-                        label="iotaAddress"
-                        withCopy
-                    />
-                    <Stat
-                        value={shortString(payload.stakingPoolId, 4, 4)}
-                        label="Pool ID"
-                        withCopy
-                    />
-                    <Stat
-                        value={shortString(payload.protocolPubkeyBytes, 4, 4)}
-                        label="Protocol Public Key"
-                        withCopy
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
                     <CardTitle>Current Epoch</CardTitle>
                 </CardHeader>
                 <CardContent className="grid w-full grid-cols-2 items-center justify-center gap-4 @[25rem]:grid-cols-3">
@@ -167,6 +144,35 @@ export default function ValidatorDetailPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Identity</CardTitle>
+                </CardHeader>
+                <CardContent className="grid w-full grid-cols-1 gap-4 @[40rem]:grid-cols-3">
+                    <Stat
+                        value={shortString(iotaAddress, 4, 4)}
+                        copyValue={iotaAddress}
+                        size={"sm"}
+                        label="iotaAddress"
+                        withCopy
+                    />
+                    <Stat
+                        value={shortString(payload.stakingPoolId, 4, 4)}
+                        copyValue={payload.stakingPoolId}
+                        size={"sm"}
+                        label="Pool ID"
+                        withCopy
+                    />
+                    <Stat
+                        value={shortString(payload.protocolPubkeyBytes, 4, 4)}
+                        copyValue={payload.protocolPubkeyBytes}
+                        size={"sm"}
+                        label="Protocol Public Key"
+                        withCopy
+                    />
+                </CardContent>
+            </Card>
         </Page>
     );
 }

@@ -53,15 +53,6 @@ const fetchValidatorsApy = unstable_cache(
     { revalidate: 30 }
 );
 
-const fetchValidatorsGeo = unstable_cache(
-    async (url: string) => {
-        const systemState = await new IotaClient({ url }).getLatestIotaSystemState();
-        return getValidatorLocalization(systemState.activeValidators);
-    },
-    ["validatorsGeo"],
-    { revalidate: 3_600 }
-);
-
 const fetchEpochEvents = unstable_cache(
     async (url: string, count: number) => {
         const client = new IotaClient({ url });
@@ -107,7 +98,7 @@ export async function GET(request: NextRequest) {
 
         const t1 = Date.now();
         const [validatorsGeo, epochInfoEvents] = await Promise.all([
-            fetchValidatorsGeo(url),
+            getValidatorLocalization(systemState.activeValidators),
             fetchEpochEvents(url, systemState.activeValidators.length),
         ]);
         console.log(`[validators] geo+events: ${Date.now() - t1}ms | total: ${Date.now() - t0}ms`);
