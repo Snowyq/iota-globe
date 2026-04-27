@@ -35,10 +35,9 @@ export function TpsCard({
 
     const maxVal = Math.max(...samples, 1);
     const fillerCount = max - samples.length;
-    // const secAgo = Math.round(fillerCount > 0 ? samples.length : max);
-    // const peak30dTps = networkMetrics
-    //     ? networkMetrics.tps30Days.toFixed(2)
-    //     : null;
+    const peak30dTps = networkMetrics
+        ? networkMetrics.tps30Days.toFixed(2)
+        : null;
 
     return (
         <Card className={cn("flex justify-center", className)}>
@@ -49,6 +48,12 @@ export function TpsCard({
                     size={"lg"}
                     sub="tx/s"
                     className="min-w-30"
+                />
+                <Stat
+                    value={Number(peak30dTps).toFixed(0)}
+                    size={"xs"}
+                    sub="30d peak"
+                    className="min-w-30 text-muted-foreground"
                 />
             </div>
             <CardContent className="relative flex h-full items-center gap-2">

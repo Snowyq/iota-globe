@@ -17,16 +17,7 @@ import { useState } from "react";
 
 const MAX = 20;
 
-type StoredTx = TransactionStreamItem & { arrivedAt: number };
-type StoredCp = CheckpointStreamItem & { arrivedAt: number };
-
-function Row({
-    fresh,
-    children,
-}: {
-    fresh: boolean;
-    children: React.ReactNode;
-}) {
+function Row({ children }: { children: React.ReactNode }) {
     return (
         <div
             className={cn(
@@ -39,23 +30,20 @@ function Row({
 }
 
 function Time({
-    arrivedAt,
-    className,
+    timestampMs,
     now,
 }: {
-    arrivedAt: number;
-    className?: string;
+    timestampMs: string | null;
     now: number;
 }) {
+    const t = timeAgo(timestampMs, now);
     return (
-        <span
-            className={cn(
-                "w-14 shrink-0 text-muted-foreground tabular-nums",
-                className
-            )}
-        >
-            {timeAgo(arrivedAt, now)}
-        </span>
+        <Stat
+            size={"xs"}
+            className="w-14 shrink-0 text-right text-muted-foreground tabular-nums"
+            value={t.value}
+            sub={t.label}
+        />
     );
 }
 
@@ -79,7 +67,7 @@ function ListSkeleton() {
 }
 
 function TransactionsList() {
-    const [txs, setTxs] = useState<StoredTx[]>([]);
+    const [txs, setTxs] = useState<TransactionStreamItem[]>([]);
     const now = useNowTime();
 
     useOnNetworkChange(() => setTxs([]));
@@ -87,7 +75,7 @@ function TransactionsList() {
     useLiveStream<TransactionStreamItem>("/api/transactions/stream", (item) => {
         setTxs((prev) => {
             if (prev.some((t) => t.digest === item.digest)) return prev;
-            return [{ ...item, arrivedAt: Date.now() }, ...prev].slice(0, MAX);
+            return [item, ...prev].slice(0, MAX);
         });
     });
 
@@ -96,7 +84,7 @@ function TransactionsList() {
     return (
         <div className="flex flex-col gap-px">
             {txs.map((tx, i) => (
-                <Row key={tx.digest} fresh={i === 0}>
+                <Row key={tx.digest}>
                     <div className="flex min-w-0 flex-col gap-0.5">
                         <span className="font-mono text-foreground">
                             {shortString(tx.digest, 4, 6)}
@@ -118,7 +106,7 @@ function TransactionsList() {
                         />
                         <Stat size="xs" value={tx.txnsCount} sub="txns" />
                     </div>
-                    <Time arrivedAt={tx.arrivedAt} now={now} />
+                    <Time timestampMs={tx.timestampMs} now={now} />
                 </Row>
             ))}
         </div>
@@ -126,7 +114,7 @@ function TransactionsList() {
 }
 
 function CheckpointsList() {
-    const [checkpoints, setCheckpoints] = useState<StoredCp[]>([]);
+    const [checkpoints, setCheckpoints] = useState<CheckpointStreamItem[]>([]);
     const now = useNowTime();
 
     useOnNetworkChange(() => setCheckpoints([]));
@@ -135,7 +123,7 @@ function CheckpointsList() {
         setCheckpoints((prev) => {
             if (prev.some((c) => c.sequenceNumber === item.sequenceNumber))
                 return prev;
-            return [{ ...item, arrivedAt: Date.now() }, ...prev].slice(0, MAX);
+            return [item, ...prev].slice(0, MAX);
         });
     });
 
@@ -144,7 +132,7 @@ function CheckpointsList() {
     return (
         <div className="flex flex-col gap-px">
             {checkpoints.map((cp, i) => (
-                <Row key={cp.sequenceNumber} fresh={i === 0}>
+                <Row key={cp.sequenceNumber}>
                     <div className="flex min-w-0 flex-col gap-0.5">
                         <span className="font-mono text-foreground">
                             #{Number(cp.sequenceNumber).toLocaleString()}
@@ -153,7 +141,7 @@ function CheckpointsList() {
                     <div className="mr-5 flex w-full min-w-0 flex-col items-end gap-0.5">
                         <Stat size="xs" value={cp.txCount} sub="txns" />
                     </div>
-                    <Time arrivedAt={cp.arrivedAt} now={now} />
+                    <Time timestampMs={cp.timestampMs} now={now} />
                 </Row>
             ))}
         </div>

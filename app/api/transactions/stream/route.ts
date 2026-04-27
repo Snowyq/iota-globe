@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
                                       1e9
                               )
                             : 0,
-                        timestampMs: cp.timestampMs,
+                        timestampMs: tx.timestampMs ?? cp.timestampMs,
                         checkpoint: tx.checkpoint ?? String(seq),
                     });
                 }
@@ -88,10 +88,8 @@ export async function GET(request: NextRequest) {
                 try {
                     const latest = Number(await client.getLatestCheckpointSequenceNumber());
                     if (latest <= lastSeq) return;
-                    const toFetch = Math.min(latest - lastSeq, 3);
-                    for (let i = 1; i <= toFetch; i++)
-                        await sendCheckpoint(lastSeq + i);
-                    lastSeq += toFetch;
+                    await sendCheckpoint(latest);
+                    lastSeq = latest;
                 } catch {}
             }, POLL_MS);
 

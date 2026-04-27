@@ -9,7 +9,7 @@ export function LiveBadge({
     className?: string;
 }) {
     return (
-        <Badge variant="outline">
+        <Badge variant="outline" className={className}>
             <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />

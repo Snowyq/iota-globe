@@ -2,13 +2,7 @@
 
 import { NetworkApiResponseData } from "@/app/api/network/route";
 import { fetchNetwork } from "@/lib/fetchNetwork";
-import {
-    createContext,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { OptionsContext } from "../options/OptionsContext";
 
 interface NetworkContextValue {
@@ -41,17 +35,31 @@ export default function NetworkContextProvider({
     children: React.ReactNode;
 }) {
     const { network } = useContext(OptionsContext);
-    const [networkMetrics, setNetworkMetrics] = useState<NetworkApiResponseData["networkMetrics"] | null>(null);
-    const [addressMetrics, setAddressMetrics] = useState<NetworkApiResponseData["addressMetrics"] | null>(null);
+    const [networkMetrics, setNetworkMetrics] = useState<
+        NetworkApiResponseData["networkMetrics"] | null
+    >(null);
+    const [addressMetrics, setAddressMetrics] = useState<
+        NetworkApiResponseData["addressMetrics"] | null
+    >(null);
     const [totalDelegators, setTotalDelegators] = useState<string | null>(null);
-    const [circulatingSupply, setCirculatingSupply] = useState<NetworkApiResponseData["circulatingSupply"] | null>(null);
-    const [lastEpochRewards, setLastEpochRewards] = useState<NetworkApiResponseData["lastEpochRewards"] | null>(null);
-    const [totalTransactions, setTotalTransactions] = useState<string | null>(null);
-    const [lastEpochTransactions, setLastEpochTransactions] = useState<string | null>(null);
+    const [circulatingSupply, setCirculatingSupply] = useState<
+        NetworkApiResponseData["circulatingSupply"] | null
+    >(null);
+    const [lastEpochRewards, setLastEpochRewards] = useState<
+        NetworkApiResponseData["lastEpochRewards"] | null
+    >(null);
+    const [totalTransactions, setTotalTransactions] = useState<string | null>(
+        null
+    );
+    const [lastEpochTransactions, setLastEpochTransactions] = useState<
+        string | null
+    >(null);
     const [isLoading, setIsLoading] = useState(true);
     const [dataTtl, setDataTtl] = useState<number | null>(null);
 
     useEffect(() => {
+        // Reset all data when network changes
+        // eslint-disable-next-line
         setNetworkMetrics(null);
         setAddressMetrics(null);
         setTotalDelegators(null);
@@ -91,8 +99,28 @@ export default function NetworkContextProvider({
     }, [network]);
 
     const contextValue = useMemo(
-        () => ({ networkMetrics, addressMetrics, totalDelegators, circulatingSupply, lastEpochRewards, totalTransactions, lastEpochTransactions, isLoading, dataTtl }),
-        [networkMetrics, addressMetrics, totalDelegators, circulatingSupply, lastEpochRewards, totalTransactions, lastEpochTransactions, isLoading, dataTtl]
+        () => ({
+            networkMetrics,
+            addressMetrics,
+            totalDelegators,
+            circulatingSupply,
+            lastEpochRewards,
+            totalTransactions,
+            lastEpochTransactions,
+            isLoading,
+            dataTtl,
+        }),
+        [
+            networkMetrics,
+            addressMetrics,
+            totalDelegators,
+            circulatingSupply,
+            lastEpochRewards,
+            totalTransactions,
+            lastEpochTransactions,
+            isLoading,
+            dataTtl,
+        ]
     );
 
     return (
