@@ -1,8 +1,8 @@
 "use client";
 
-import { SiteLink } from "@/components/SiteLink";
 import { Page } from "@/components/Page";
 import { PageHeader } from "@/components/PageHeader";
+import { SiteLink } from "@/components/SiteLink";
 import { Stat } from "@/components/Stat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,27 +66,24 @@ export default function ValidatorDetailPage() {
     const { payload, stats, iotaAddress, isCommitteeMember } = validator;
 
     const apyFormatted =
-        stats.apyPercent != null ? `${stats.apyPercent.toFixed(2)}%` : "—";
+        stats.apyPercent != null ? `${stats.apyPercent.toFixed(2)}` : "—";
     const commission =
         payload.effectiveCommissionRate != null
             ? `${(Number(payload.effectiveCommissionRate) / 100).toFixed(2)}%`
             : "—";
     const votingPower =
         payload.votingPower != null
-            ? `${(Number(payload.votingPower) / 100).toFixed(2)}%`
+            ? `${(Number(payload.votingPower) / 100).toFixed(2)}`
             : "—";
 
     const totalStaked = formatNanoToIota(payload.stakingPoolIotaBalance);
     const rewardsPool = formatNanoToIota(payload.rewardsPool);
-    const lastReward =
-        stats.lastEpochRewardIOTA != null
-            ? formatIota(stats.lastEpochRewardIOTA)
-            : null;
+    const lastReward = formatIota(stats.lastEpochRewardIOTA);
 
     const nextEpochStake = formatNanoToIota(payload.nextEpochStake);
     const nextEpochCommission =
         payload.nextEpochCommissionRate != null
-            ? `${(Number(payload.nextEpochCommissionRate) / 100).toFixed(2)}%`
+            ? `${(Number(payload.nextEpochCommissionRate) / 100).toFixed(2)}`
             : "—";
 
     return (
@@ -123,9 +120,9 @@ export default function ValidatorDetailPage() {
                     <CardTitle>Current Epoch</CardTitle>
                 </CardHeader>
                 <CardContent className="grid w-full grid-cols-2 items-center justify-center gap-4 @[25rem]:grid-cols-3 @[48rem]:grid-cols-5">
-                    <Stat value={apyFormatted} label="APY" />
-                    <Stat value={commission} label="Commission" />
-                    <Stat value={votingPower} label="Voting Power" />
+                    <Stat value={apyFormatted} label="APY" sub="%" />
+                    <Stat value={commission} label="Commission" sub="%" />
+                    <Stat value={votingPower} label="Voting Power" sub="%" />
                     <Stat
                         value={totalStaked.value}
                         sub={totalStaked.label}
