@@ -4,7 +4,7 @@ import {
     ValidatorResponseItem,
     ValidatorsApiResponseData,
 } from "@/app/api/validators/route";
-import { fetchValidators } from "@/lib/fetchValidators";
+import { fetchValidators } from "@/lib/fetch";
 import {
     createContext,
     useCallback,
@@ -28,7 +28,6 @@ interface ValidatorsContextValue {
     validators: Validator[];
     isLoading: boolean;
     networkStats: ValidatorsApiResponseData["systemState"] | null;
-    pendingActiveValidatorsSize: string | null;
     dataTtl: number | null;
     selectValidator?: (iotaAddress: string) => void;
     deselectValidator?: () => void;
@@ -39,14 +38,13 @@ export const ValidatorsContext = createContext<ValidatorsContextValue>({
     validators: [],
     isLoading: true,
     networkStats: null,
-    pendingActiveValidatorsSize: null,
     dataTtl: null,
     selectedValidator: null,
     selectValidator: () => {},
     deselectValidator: () => {},
 });
 
-const PULL_INTERVAL_MS = 60_000;
+const PULL_INTERVAL_MS = 30_000;
 
 export default function ValidatorsContextProvider({
     children,
@@ -59,8 +57,7 @@ export default function ValidatorsContextProvider({
     const [networkStats, setNetworkStats] = useState<
         ValidatorsApiResponseData["systemState"] | null
     >(null);
-    const [pendingActiveValidatorsSize, setPendingActiveValidatorsSize] =
-        useState<string | null>(null);
+
     const [dataTtl, setDataTtl] = useState<number | null>(null);
     const [selectedValidator, setSelectedValidator] =
         useState<Validator | null>(null);
@@ -84,7 +81,6 @@ export default function ValidatorsContextProvider({
         setValidators([]);
         setIsLoading(true);
         setNetworkStats(null);
-        setPendingActiveValidatorsSize(null);
         setDataTtl(null);
 
         let firstLoad = true;
@@ -96,12 +92,9 @@ export default function ValidatorsContextProvider({
                     info.validators.map((v) => computeStats(v, info))
                 );
                 setNetworkStats(info.systemState);
-                setPendingActiveValidatorsSize(
-                    info.pendingActiveValidatorsSize
-                );
                 setDataTtl(ttl);
             } catch (error) {
-                console.error("Failed to refresh validators:", error);
+                console.error("Failed to fetch validators:", error);
             } finally {
                 if (firstLoad) {
                     setIsLoading(false);
@@ -120,7 +113,6 @@ export default function ValidatorsContextProvider({
             validators,
             isLoading,
             networkStats,
-            pendingActiveValidatorsSize,
             dataTtl,
             selectValidator,
             deselectValidator,
@@ -130,7 +122,6 @@ export default function ValidatorsContextProvider({
             validators,
             isLoading,
             networkStats,
-            pendingActiveValidatorsSize,
             dataTtl,
             selectValidator,
             deselectValidator,

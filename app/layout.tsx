@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Lora } from "next/font/google";
 
 import Navigation from "@/components/Navigation";
 import { ThemeProvider } from "@/components/theme-provider";
+import { createCustomLayerData } from "@/features/globe/customLayerData";
 import GlobeContextProvider from "@/features/globe/GlobeContext";
 import NetworkContextProvider from "@/features/network/NetworkContext";
 import OptionsContextProvider from "@/features/options/OptionsContext";
@@ -19,6 +20,7 @@ const fontSans = Geist({
 
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
+const customLayer = createCustomLayerData();
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -44,7 +46,9 @@ export default function RootLayout({
                             <GlobeContextProvider>
                                 <ThemeProvider>
                                     <Navigation />
-                                    <AppLayout>{children}</AppLayout>
+                                    <AppLayout customLayerData={customLayer}>
+                                        {children}
+                                    </AppLayout>
                                 </ThemeProvider>
                             </GlobeContextProvider>
                         </ValidatorsContextProvider>

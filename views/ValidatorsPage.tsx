@@ -9,24 +9,21 @@ import ValidatorsTable from "@/features/validators/ValidatorsTable";
 import { Search } from "lucide-react";
 import { useContext, useState } from "react";
 
-type Tab = "all" | "committee" | "active" | "pending" | "at-risk";
+type Tab = "all" | "committee" | "active" | "at-risk";
 
 export default function ValidatorsPage() {
     const [query, setQuery] = useState("");
     const [tab, setTab] = useState<Tab>("all");
-    const { validators, pendingActiveValidatorsSize } =
-        useContext(ValidatorsContext);
+    const { validators } = useContext(ValidatorsContext);
 
     const committeeCount = validators.filter((v) => v.isCommitteeMember).length;
     const activeCount = validators.filter((v) => !v.isCommitteeMember).length;
     const atRiskCount = validators.filter((v) => v.isAtRisk).length;
-    const pendingCount = Number(pendingActiveValidatorsSize ?? 0);
 
     const tabs: { id: Tab; label: string; count: number }[] = [
         { id: "all", label: "All", count: validators.length },
         { id: "committee", label: "Committee", count: committeeCount },
         { id: "active", label: "Active", count: activeCount },
-        { id: "pending", label: "Pending", count: pendingCount },
         { id: "at-risk", label: "At Risk", count: atRiskCount },
     ];
 

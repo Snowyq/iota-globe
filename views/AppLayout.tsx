@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CustomLayerDatum } from "@/features/globe/customLayerData";
 import { GlobeNoSSR } from "@/features/globe/GlobeNoSSR";
 import { GlobeOptions } from "@/features/globe/GlobeOptions";
 import { OptionsContext } from "@/features/options/OptionsContext";
@@ -11,123 +12,13 @@ import { IndexFullscreenPanel } from "./Index";
 
 const GLOBE_CENTER_OFFSET_Y = 0;
 
-function GlobeWithControls({
-    panelFullscreen,
-    globeOffsetX,
-}: {
-    panelFullscreen: boolean;
-    globeOffsetX: number;
-}) {
-    const outerRef = useRef<HTMLDivElement>(null);
-    const canvasRef = useRef<HTMLDivElement>(null);
-    const [offsets, setOffsets] = useState<[number, number]>([0, 0]);
-
-    useEffect(() => {
-        const update = () => {
-            const outer = outerRef.current;
-            const canvas = canvasRef.current;
-            if (!outer || !canvas) return;
-            const scrollY = window.scrollY;
-            const nav = document.querySelector("header");
-            const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
-            const outerBottom = outer.getBoundingClientRect().bottom + scrollY;
-            const visibleCenter = (navBottom + outerBottom) / 2;
-            const canvasRect = canvas.getBoundingClientRect();
-            const canvasCenter =
-                canvasRect.top + scrollY + canvasRect.height / 2;
-            setOffsets([
-                0,
-                visibleCenter - canvasCenter + GLOBE_CENTER_OFFSET_Y,
-            ]);
-        };
-
-        update();
-        const observer = new ResizeObserver(update);
-        observer.observe(document.documentElement);
-        return () => observer.disconnect();
-    }, []);
-
-    return (
-        <div
-            ref={outerRef}
-            className={cn(
-                "relative w-screen transition-[height] duration-500 ease-in-out",
-                panelFullscreen ? "h-svh" : "h-[65vh] max-h-200 sm:h-[60vh]"
-            )}
-        >
-            <div
-                ref={canvasRef}
-                className={cn(
-                    "absolute inset-0 overflow-hidden after:pointer-events-none md:bottom-auto md:h-dvh md:overflow-visible",
-                    !panelFullscreen &&
-                        "after:absolute after:inset-x-0 after:bottom-0 after:h-[10vh] after:max-h-200 after:bg-linear-to-b after:from-background/0 after:via-background/50 after:via-50% after:to-background after:[content:''] after:md:h-[45vh] after:md:via-background/90"
-                )}
-            >
-                <GlobeNoSSR
-                    className=""
-                    variant="home"
-                    globeOffset={panelFullscreen ? [globeOffsetX, 0] : offsets}
-                    targetAltitude={panelFullscreen ? 2.5 : 4.5}
-                />
-            </div>
-
-            <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--nav-height)+2rem)] bottom-0 z-20">
-                <GlobeOptions className={cn(
-                    "pointer-events-auto absolute flex-col",
-                    panelFullscreen
-                        ? "right-4 sm:right-5"
-                        : "right-4 sm:right-5 xl:right-10"
-                )} />
-            </div>
-        </div>
-    );
-}
-
-function PagePanel({
-    panelFullscreen,
-    narrow,
-    contentVisible,
-    fullscreenSlot,
-    panelRef,
+export function AppLayout({
     children,
+    customLayerData,
 }: {
-    panelFullscreen: boolean;
-    narrow: boolean;
-    contentVisible: boolean;
-    fullscreenSlot?: React.ReactNode;
-    panelRef: React.RefObject<HTMLDivElement | null>;
     children: React.ReactNode;
+    customLayerData: CustomLayerDatum[];
 }) {
-    return (
-        <div
-            ref={panelRef}
-            className={cn(
-                "z-20 transition-opacity duration-180",
-                contentVisible ? "opacity-100" : "opacity-0",
-                panelFullscreen
-                    ? cn(
-                          "fixed top-(--nav-height) bottom-0 left-0",
-                          narrow
-                              ? "w-100"
-                              : "w-200 bg-background/50 backdrop-blur-xs"
-                      )
-                    : "relative w-full max-md:-mt-20"
-            )}
-        >
-            {panelFullscreen ? (
-                (fullscreenSlot ?? (
-                    <ScrollArea className="h-full">
-                        <div className="@container py-6">{children}</div>
-                    </ScrollArea>
-                ))
-            ) : (
-                <>{children}</>
-            )}
-        </div>
-    );
-}
-
-export function AppLayout({ children }: { children: React.ReactNode }) {
     const { isFullscreen } = useContext(OptionsContext);
     const pathname = usePathname();
     const [contentVisible, setContentVisible] = useState(true);
@@ -173,9 +64,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     : "min-h-svh overflow-x-hidden"
             )}
         >
+            <div
+                className={cn(
+                    "pointer-events-none absolute top-[calc(var(--nav-height)+2rem)] left-1/2 z-20 flex w-full -translate-x-1/2",
+                    isFullscreen ? "pr-10" : "section"
+                )}
+            >
+                <GlobeOptions className="pointer-events-auto ml-auto w-fit! flex-col" />
+            </div>
             <GlobeWithControls
                 panelFullscreen={panelFullscreen}
                 globeOffsetX={globeOffsetX}
+                customLayerData={customLayerData}
             />
             <PagePanel
                 panelFullscreen={panelFullscreen}
@@ -194,6 +94,116 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         contentVisible ? "opacity-100" : "opacity-0"
                     )}
                 />
+            )}
+        </div>
+    );
+}
+
+function GlobeWithControls({
+    panelFullscreen,
+    globeOffsetX,
+    customLayerData,
+}: {
+    panelFullscreen: boolean;
+    globeOffsetX: number;
+    customLayerData: CustomLayerDatum[];
+}) {
+    const outerRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLDivElement>(null);
+    const [offsets, setOffsets] = useState<[number, number]>([0, 0]);
+
+    useEffect(() => {
+        const update = () => {
+            const outer = outerRef.current;
+            const canvas = canvasRef.current;
+            if (!outer || !canvas) return;
+            const scrollY = window.scrollY;
+            const nav = document.querySelector("#site-nav");
+            const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
+            const outerBottom = outer.getBoundingClientRect().bottom + scrollY;
+            const visibleCenter = (navBottom + outerBottom) / 2;
+            const canvasRect = canvas.getBoundingClientRect();
+            const canvasCenter =
+                canvasRect.top + scrollY + canvasRect.height / 2;
+            setOffsets([
+                0,
+                visibleCenter - canvasCenter + GLOBE_CENTER_OFFSET_Y,
+            ]);
+        };
+
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(document.documentElement);
+        return () => observer.disconnect();
+    }, []);
+
+    return (
+        <div
+            ref={outerRef}
+            className={cn(
+                "relative w-screen transition-[height] duration-500 ease-in-out",
+                panelFullscreen ? "h-svh" : "h-[65vh] max-h-200 sm:h-[60vh]"
+            )}
+        >
+            <div
+                ref={canvasRef}
+                className={cn(
+                    "absolute inset-0 overflow-hidden after:pointer-events-none md:bottom-auto md:h-dvh md:overflow-visible",
+                    !panelFullscreen &&
+                        "after:absolute after:inset-x-0 after:bottom-0 after:h-[10vh] after:max-h-200 after:bg-linear-to-b after:from-background/0 after:via-background/50 after:via-50% after:to-background after:[content:''] after:md:h-[45vh] after:md:via-background/90"
+                )}
+            >
+                <GlobeNoSSR
+                    className=""
+                    customLayerData={customLayerData}
+                    variant="home"
+                    globeOffset={panelFullscreen ? [globeOffsetX, 0] : offsets}
+                    targetAltitude={panelFullscreen ? 2.5 : 4.5}
+                />
+            </div>
+        </div>
+    );
+}
+
+function PagePanel({
+    panelFullscreen,
+    narrow,
+    contentVisible,
+    fullscreenSlot,
+    panelRef,
+    children,
+}: {
+    panelFullscreen: boolean;
+    narrow: boolean;
+    contentVisible: boolean;
+    fullscreenSlot?: React.ReactNode;
+    panelRef: React.RefObject<HTMLDivElement | null>;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            ref={panelRef}
+            className={cn(
+                "z-20 transition-opacity duration-180",
+                contentVisible ? "opacity-100" : "opacity-0",
+                panelFullscreen
+                    ? cn(
+                          "fixed top-(--nav-height) bottom-0 left-0",
+                          narrow
+                              ? "w-100"
+                              : "w-200 bg-background/50 backdrop-blur-xs"
+                      )
+                    : "relative w-full max-md:-mt-20"
+            )}
+        >
+            {panelFullscreen ? (
+                (fullscreenSlot ?? (
+                    <ScrollArea className="h-full">
+                        <div className="@container py-6">{children}</div>
+                    </ScrollArea>
+                ))
+            ) : (
+                <>{children}</>
             )}
         </div>
     );

@@ -8,6 +8,8 @@ const VALIDATOR_EPOCH_INFO_EVENT =
     "0x3::validator_set::ValidatorEpochInfoEventV1";
 const MAX_EVENTS_PER_PAGE = 50;
 
+const TTL_MS = 15_000;
+
 type SystemState = Awaited<ReturnType<IotaClient["getLatestIotaSystemState"]>>;
 type ValidatorsApy = Awaited<ReturnType<IotaClient["getValidatorsApy"]>>;
 type ValidatorGeo = Awaited<ReturnType<typeof getValidatorLocalization>>;
@@ -44,13 +46,13 @@ export type ValidatorsApiResponseData = {
 const fetchSystemState = unstable_cache(
     async (url: string) => new IotaClient({ url }).getLatestIotaSystemState(),
     ["validatorsSystemState"],
-    { revalidate: 30 }
+    { revalidate: TTL_MS / 1000 }
 );
 
 const fetchValidatorsApy = unstable_cache(
     async (url: string) => new IotaClient({ url }).getValidatorsApy(),
     ["validatorsApy"],
-    { revalidate: 30 }
+    { revalidate: TTL_MS / 1000 }
 );
 
 const fetchEpochEvents = unstable_cache(
@@ -72,7 +74,7 @@ const fetchEpochEvents = unstable_cache(
         return allEvents.slice(0, count);
     },
     ["validatorsEpochEvents"],
-    { revalidate: 30 }
+    { revalidate: TTL_MS / 1000 }
 );
 
 export async function GET(request: NextRequest) {
@@ -94,14 +96,18 @@ export async function GET(request: NextRequest) {
             fetchSystemState(url),
             fetchValidatorsApy(url),
         ]);
-        console.log(`[validators] systemState+apy: ${Date.now() - t0}ms (${systemState.activeValidators.length} validators)`);
+        console.log(
+            `[validators] systemState+apy: ${Date.now() - t0}ms (${systemState.activeValidators.length} validators)`
+        );
 
         const t1 = Date.now();
         const [validatorsGeo, epochInfoEvents] = await Promise.all([
             getValidatorLocalization(systemState.activeValidators),
             fetchEpochEvents(url, systemState.activeValidators.length),
         ]);
-        console.log(`[validators] geo+events: ${Date.now() - t1}ms | total: ${Date.now() - t0}ms`);
+        console.log(
+            `[validators] geo+events: ${Date.now() - t1}ms | total: ${Date.now() - t0}ms`
+        );
 
         const apyByAddress = new Map(
             validatorsApy.apys.map((item) => [item.address, item.apy])
@@ -140,7 +146,7 @@ export async function GET(request: NextRequest) {
         return new Response(
             JSON.stringify({
                 status: "success",
-                ttl: 30_000,
+                ttl: TTL_MS,
                 payload: responseData,
             }),
             { headers: { "Content-Type": "application/json" } }

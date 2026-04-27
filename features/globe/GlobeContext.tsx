@@ -2,12 +2,13 @@
 
 import { type ValidatorResponseItem } from "@/app/api/validators/route";
 import { OptionsContext } from "@/features/options/OptionsContext";
-import { fetchValidators } from "@/lib/fetchValidators";
+import { fetchValidators } from "@/lib/fetch";
 import {
     createContext,
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -102,7 +103,7 @@ export default function GlobeContextProvider({
         };
 
         load();
-        const interval = setInterval(load, 30_000);
+        const interval = setInterval(load, 60_000);
         return () => clearInterval(interval);
     }, [network]);
 
@@ -125,7 +126,7 @@ export default function GlobeContextProvider({
             try {
                 methods.controls().autoRotate = false;
             } catch {
-                // Safari
+                console.error("Failed to move globe (non-fatal)");
             }
             const targetAltitude = altitude ?? methods.pointOfView().altitude;
             methods.pointOfView({ lat, lng, altitude: targetAltitude }, 1000);
@@ -145,7 +146,7 @@ export default function GlobeContextProvider({
                 0
             );
         } catch {
-            // Safari
+            console.error("Failed to zoom globe (non-fatal)");
         }
     }, []);
 
@@ -158,7 +159,9 @@ export default function GlobeContextProvider({
         try {
             if (globeMethodsRef.current)
                 globeMethodsRef.current.controls().autoRotate = true;
-        } catch {}
+        } catch {
+            console.error("Failed to start globe spinning (non-fatal)");
+        }
     }, []);
 
     const resetGlobe = useCallback(() => {
@@ -175,26 +178,38 @@ export default function GlobeContextProvider({
             try {
                 methods.controls().autoRotate = true;
             } catch {
-                // Safari boom
+                console.error("Failed to reset globe (non-fatal)");
             }
             returnTimeoutRef.current = null;
         }, RETURN_DELAY_MS);
     }, []);
 
+    const contextValue = useMemo(() => {
+        return {
+            onGlobeReady,
+            moveGlobeTo,
+            zoomGlobe,
+            startSpinning,
+            resetGlobe,
+            getCanvas,
+            geoPoints,
+            openClusterId,
+            setOpenClusterId,
+        };
+    }, [
+        onGlobeReady,
+        moveGlobeTo,
+        zoomGlobe,
+        startSpinning,
+        resetGlobe,
+        getCanvas,
+        geoPoints,
+        openClusterId,
+        setOpenClusterId,
+    ]);
+
     return (
-        <GlobeContext.Provider
-            value={{
-                onGlobeReady,
-                moveGlobeTo,
-                zoomGlobe,
-                startSpinning,
-                resetGlobe,
-                getCanvas,
-                geoPoints,
-                openClusterId,
-                setOpenClusterId,
-            }}
-        >
+        <GlobeContext.Provider value={contextValue}>
             {children}
         </GlobeContext.Provider>
     );

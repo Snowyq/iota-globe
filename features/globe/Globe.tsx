@@ -2,8 +2,8 @@
 
 import earthDarkTexture from "@/assets/earth-dark.jpg";
 import landTopology from "@/assets/land_10m.json";
-import randomLocations from "@/assets/random-locations.json";
 import texture from "@/assets/Textures.jpg";
+import { ARC_MID_COLOR, CustomLayerDatum } from "@/features/globe/customLayerData";
 import { GlobeContext } from "@/features/globe/GlobeContext";
 import { randomInt } from "@/lib/math";
 import { cn } from "@/lib/utils";
@@ -43,32 +43,18 @@ type GlobeProps = {
     variant?: "home" | "globe";
     globeOffset?: [number, number];
     targetAltitude?: number;
+    customLayerData: CustomLayerDatum[];
     ref?: React.RefObject<GlobeMethods | undefined>;
 };
 
 type ClusterPoint = ValidatorCluster;
 
-type RandomLocationDatum = { lat: string | number; lng: string | number };
-
-type CustomLayerDatum =
-    | { kind: "mesh" }
-    | {
-          kind: "star";
-          lat: number;
-          lng: number;
-          altitude: number;
-          size: number;
-          color: string;
-      };
 
 const INITIAL_ALTITUDE = 3;
 const CLUSTER_BUBBLE_ALTITUDE = 0.06;
 const ARC_ANIMATE_TIME_MIN = 300;
 const ARC_ANIMATE_TIME_MAX = 800;
-const ARC_MID_COLOR = "#93c5fd";
-const CUSTOM_LAYER_DATA = createCustomLayerData(
-    randomLocations as RandomLocationDatum[]
-);
+
 const LAND_FEATURES = (
     topojson.feature(
         landTopology as unknown as Parameters<typeof topojson.feature>[0],
@@ -87,6 +73,7 @@ export function Globe({
     variant,
     globeOffset = [0, 0],
     targetAltitude,
+    customLayerData,
 }: GlobeProps) {
     const { onGlobeReady: notifyGlobeReady, geoPoints } =
         useContext(GlobeContext);
@@ -277,7 +264,7 @@ export function Globe({
                 }
                 polygonAltitude={variant === "home" ? 0.01 : undefined}
                 bumpImageUrl={undefined}
-                customLayerData={CUSTOM_LAYER_DATA}
+                customLayerData={customLayerData}
                 customThreeObject={handleCustomThreeObject}
                 customThreeObjectUpdate={handleCustomThreeObjectUpdate}
                 showAtmosphere={true}
@@ -374,6 +361,7 @@ function buildStableArcs(
 }
 
 function createCustomLayerData(
+    stars: typeof backgroundStars,
     locations: RandomLocationDatum[]
 ): CustomLayerDatum[] {
     const surfaceStars = locations.map((loc, i) => ({
@@ -383,15 +371,6 @@ function createCustomLayerData(
         altitude: 0.01,
         size: 0.1 + (i % 7) * 0.008,
         color: ARC_MID_COLOR,
-    }));
-
-    const backgroundStars = Array.from({ length: 500 }, () => ({
-        kind: "star" as const,
-        lat: (Math.random() - 1) * 360,
-        lng: (Math.random() - 1) * 360,
-        altitude: Math.random() * 2,
-        size: Math.random() * 0.4,
-        color: "#ffffff",
     }));
 
     return [{ kind: "mesh" }, ...surfaceStars, ...backgroundStars];

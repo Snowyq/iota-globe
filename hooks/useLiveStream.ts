@@ -16,7 +16,9 @@ export function useLiveStream<T>(
         es.onmessage = (e) => {
             try {
                 onMessageCallback(JSON.parse(e.data) as T);
-            } catch {}
+            } catch {
+                console.error("Failed to parse SSE message", path);
+            }
         };
         es.onerror = () => es.close();
         return () => es.close();

@@ -2,7 +2,7 @@
 
 import { CheckpointStreamItem } from "@/app/api/checkpoints/stream/route";
 import { TransactionStreamItem } from "@/app/api/transactions/stream/route";
-import { InnerLink } from "@/components/InnerLink";
+import { SiteLink } from "@/components/SiteLink";
 import { Stat } from "@/components/Stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -173,7 +173,7 @@ export function NetworkLiveCard({ className }: { className?: string }) {
                         </TabsList>
                     </Tabs>
                     {tab === "transactions" ? (
-                        <InnerLink href={"/transactions"} label="View all" />
+                        <SiteLink href={"/transactions"} label="View all" />
                     ) : null}
                 </div>
             </CardHeader>

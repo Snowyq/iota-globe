@@ -32,7 +32,9 @@ export function useGlobeClickOutside(
             const target = e.target as Element;
             if (!target.isConnected) return;
             if (!ref.current || ref.current.contains(target)) return;
+            // if clicked other globe marker do nothing
             if (target.closest("[data-globe-marker]")) return;
+            // if clicked outside globe canvas do nothing
             if (target !== getCanvas()) return;
             callback();
         };

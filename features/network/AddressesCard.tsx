@@ -10,15 +10,15 @@ import { useContext } from "react";
 export function AddressesCard({ className }: { className?: string }) {
     const { addressMetrics } = useContext(NetworkContext);
 
-    const total = formatNumber(
-        addressMetrics ? Number(addressMetrics.cumulativeAddresses) : null
-    );
-    const totalActive = formatNumber(
-        addressMetrics ? Number(addressMetrics.cumulativeActiveAddresses) : null
-    );
-    const dailyActive = formatNumber(
-        addressMetrics ? Number(addressMetrics.dailyActiveAddresses) : null
-    );
+    const {
+        cumulativeAddresses,
+        cumulativeActiveAddresses,
+        dailyActiveAddresses,
+    } = addressMetrics || {};
+
+    const total = formatNumber(Number(cumulativeAddresses));
+    const totalActive = formatNumber(Number(cumulativeActiveAddresses));
+    const dailyActive = formatNumber(Number(dailyActiveAddresses));
 
     return (
         <Card className={cn(className)}>

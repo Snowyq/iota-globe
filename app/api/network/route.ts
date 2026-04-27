@@ -23,7 +23,7 @@ export type NetworkApiResponseData = {
     lastEpochTransactions: string | null;
 };
 
-const TTL = 5_000;
+const TTL_MS = 5_000;
 
 const fetchChainData = unstable_cache(
     async (url: string) => {
@@ -51,7 +51,7 @@ const fetchChainData = unstable_cache(
         };
     },
     ["networkChainData"],
-    { revalidate: TTL / 1000 }
+    { revalidate: TTL_MS / 1000 }
 );
 
 const fetchEpochData = unstable_cache(
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         return new NextResponse(
             JSON.stringify({
                 status: "success",
-                ttl: TTL,
+                ttl: TTL_MS,
                 payload: responseData,
             }),
             { headers: { "Content-Type": "application/json" } }

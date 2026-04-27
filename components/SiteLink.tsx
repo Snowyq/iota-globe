@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { ArrowUpLeft, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
-export function InnerLink({
+export function SiteLink({
     href,
     label,
     className,

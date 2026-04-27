@@ -28,7 +28,7 @@ const fetchEpochPage = unstable_cache(
             cursor: cursor ?? undefined,
         }),
     ["epochsPage"],
-    { revalidate: 30 }
+    { revalidate: 60 * 60 }
 );
 
 export async function GET(request: NextRequest) {
@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor") ?? null;
 
     if (!(datasetParam in datasets))
-        return new Response(JSON.stringify({ error: "Invalid dataset" }), { status: 400 });
+        return new Response(JSON.stringify({ error: "Invalid dataset" }), {
+            status: 400,
+        });
 
     try {
         const page = await fetchEpochPage(datasets[datasetParam], cursor);
@@ -58,11 +60,17 @@ export async function GET(request: NextRequest) {
         });
 
         return new Response(
-            JSON.stringify({ epochs, nextCursor: page.nextCursor ?? null, hasNextPage: page.hasNextPage }),
+            JSON.stringify({
+                epochs,
+                nextCursor: page.nextCursor ?? null,
+                hasNextPage: page.hasNextPage,
+            }),
             { headers: { "Content-Type": "application/json" } }
         );
     } catch (e) {
         console.error(e);
-        return new Response(JSON.stringify({ error: "Failed" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed" }), {
+            status: 500,
+        });
     }
 }

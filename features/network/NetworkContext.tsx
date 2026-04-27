@@ -1,7 +1,7 @@
 "use client";
 
 import { NetworkApiResponseData } from "@/app/api/network/route";
-import { fetchNetwork } from "@/lib/fetchNetwork";
+import { fetchNetwork } from "@/lib/fetch";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { OptionsContext } from "../options/OptionsContext";
 
