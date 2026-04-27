@@ -90,24 +90,15 @@ export async function GET(request: NextRequest) {
     const url = datasets[datasetParam];
 
     try {
-        const t0 = Date.now();
-
         const [systemState, validatorsApy] = await Promise.all([
             fetchSystemState(url),
             fetchValidatorsApy(url),
         ]);
-        console.log(
-            `[validators] systemState+apy: ${Date.now() - t0}ms (${systemState.activeValidators.length} validators)`
-        );
 
-        const t1 = Date.now();
         const [validatorsGeo, epochInfoEvents] = await Promise.all([
             getValidatorLocalization(systemState.activeValidators),
             fetchEpochEvents(url, systemState.activeValidators.length),
         ]);
-        console.log(
-            `[validators] geo+events: ${Date.now() - t1}ms | total: ${Date.now() - t0}ms`
-        );
 
         const apyByAddress = new Map(
             validatorsApy.apys.map((item) => [item.address, item.apy])

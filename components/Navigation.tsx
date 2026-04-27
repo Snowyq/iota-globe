@@ -107,7 +107,7 @@ export default function Navigation() {
             </nav>
 
             {open && (
-                <div className="0 absolute inset-x-4 top-20 flex flex-col gap-2 rounded-2xl border border-border/50 bg-background/6 bg-card/50 p-2 shadow-xl backdrop-blur-md sm:inset-x-5 md:hidden xl:inset-x-10">
+                <div className="0 absolute inset-x-4 top-20 flex flex-col gap-2 rounded-2xl border border-border/50 bg-background/60 p-2 shadow-xl backdrop-blur-md sm:inset-x-5 md:hidden xl:inset-x-10">
                     {links.map(({ href, label, icon: Icon }) => (
                         <Link
                             key={href}
