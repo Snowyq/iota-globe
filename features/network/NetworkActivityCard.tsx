@@ -16,17 +16,13 @@ export default function NetworkActivityCard({
     const { networkMetrics, circulatingSupply } = useContext(NetworkContext);
     const { networkStats } = useContext(ValidatorsContext);
 
-    const totalPackages = networkMetrics
-        ? formatNumber(Number(networkMetrics.totalPackages))
-        : null;
-    const totalObjects = networkMetrics
-        ? formatNumber(Number(networkMetrics.totalObjects))
-        : null;
+    const { totalPackages, totalObjects } = networkMetrics || {};
+    const { iotaTotalSupply } = networkStats || {};
 
-    const totalSupply = formatNanoToIota(networkStats?.iotaTotalSupply ?? null);
-    const circSupply = circulatingSupply
-        ? formatNanoToIota(circulatingSupply.value)
-        : null;
+    const totalPackagesFormat = formatNumber(Number(totalPackages) ?? null);
+    const totalObjectsFormat = formatNumber(Number(totalObjects) ?? null);
+    const totalSupplyFormat = formatNanoToIota(iotaTotalSupply ?? null);
+    const circSupplyFormat = formatNanoToIota(circulatingSupply?.value ?? null);
 
     return (
         <Card className={cn(className)}>
@@ -34,16 +30,24 @@ export default function NetworkActivityCard({
                 <CardTitle>Network Activity</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-                <Stat value={totalPackages} label="Total Packages" />
-                <Stat value={totalObjects} label="Objects" />
                 <Stat
-                    value={totalSupply.value}
-                    sub={totalSupply.label}
+                    value={totalPackagesFormat.value}
+                    sub={totalPackagesFormat.label}
+                    label="Total Packages"
+                />
+                <Stat
+                    value={totalObjectsFormat.value}
+                    sub={totalObjectsFormat.label}
+                    label="Objects"
+                />
+                <Stat
+                    value={totalSupplyFormat.value}
+                    sub={totalSupplyFormat.label}
                     label="Total Supply"
                 />
                 <Stat
-                    value={circSupply?.value}
-                    sub={circSupply?.label}
+                    value={circSupplyFormat.value}
+                    sub={circSupplyFormat.label}
                     label="Circulating Supply"
                 />
             </CardContent>

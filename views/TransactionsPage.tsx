@@ -32,10 +32,8 @@ const COLS: ColDef[] = [
     { label: "Time", align: "right" },
 ];
 
-type Stored = TransactionStreamItem & { arrivedAt: number };
-
 export default function TransactionsPage() {
-    const [txs, setTxs] = useState<Stored[]>([]);
+    const [txs, setTxs] = useState<TransactionStreamItem[]>([]);
     const now = useNowTime();
 
     useOnNetworkChange(() => setTxs([]));
@@ -43,10 +41,7 @@ export default function TransactionsPage() {
     useLiveStream<TransactionStreamItem>("/api/transactions/stream", (item) => {
         setTxs((prev) => {
             if (prev.some((t) => t.digest === item.digest)) return prev;
-            return [{ ...item, arrivedAt: Date.now() }, ...prev].slice(
-                0,
-                MAX_ITEMS
-            );
+            return [item, ...prev].slice(0, MAX_ITEMS);
         });
     });
 
@@ -90,7 +85,9 @@ export default function TransactionsPage() {
                                   </TableCell>
                               </TableRow>
                           ))
-                        : txs.map((tx, i) => (
+                        : txs.map((tx, i) => {
+                              const t = timeAgo(tx.timestampMs, now);
+                              return (
                               <TableRow
                                   key={tx.digest}
                                   className={cn(
@@ -118,21 +115,19 @@ export default function TransactionsPage() {
                                       align="center"
                                   />
                                   <FormattedCell
-                                      value={
-                                          tx.gasIOTA > 0
-                                              ? tx.gasIOTA.toFixed(4)
-                                              : null
-                                      }
+                                      value={tx.gasIOTA > 0 ? tx.gasIOTA.toFixed(4) : null}
                                       label="IOTA"
                                       align="right"
                                   />
                                   <FormattedCell
-                                      value={timeAgo(tx.arrivedAt, now)}
+                                      value={t.value}
+                                      label={t.label}
                                       align="right"
                                       className="min-w-20"
                                   />
                               </TableRow>
-                          ))}
+                              );
+                          })}
                 </TableBody>
             </Table>
         </Page>
