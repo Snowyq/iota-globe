@@ -14,8 +14,8 @@ import {
 import { GlobeContext } from "@/features/globe/GlobeContext";
 import { formatIota } from "@/lib/format";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { memo, useCallback, useContext, useState } from "react";
 import { useRouter } from "next/navigation";
+import { memo, useCallback, useContext, useState } from "react";
 import { Validator, ValidatorsContext } from "./ValidatorsContext";
 
 type SortKey =
@@ -25,6 +25,7 @@ type SortKey =
     | "commission"
     | "votingPower"
     | "lastReward";
+
 type Filter = "all" | "committee" | "active" | "pending" | "at-risk";
 
 const COLUMNS: {
@@ -72,8 +73,9 @@ export default function ValidatorsTable({
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
     const filtered = validators.filter((v) => {
-        if (!v.payload.name.toLowerCase().includes(query.toLowerCase()))
+        if (!v.payload.name.toLowerCase().includes(query.toLowerCase())) {
             return false;
+        }
         if (filter === "committee") return v.isCommitteeMember;
         if (filter === "active") return !v.isCommitteeMember;
         if (filter === "at-risk") return v.isAtRisk;
@@ -123,7 +125,13 @@ export default function ValidatorsTable({
                                 key={key}
                                 label={label}
                                 align={align}
-                                icon={active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown}
+                                icon={
+                                    active
+                                        ? sortDir === "asc"
+                                            ? ArrowUp
+                                            : ArrowDown
+                                        : ArrowUpDown
+                                }
                                 iconActive={active}
                                 onClick={() => handleSort(key)}
                             />
@@ -256,7 +264,7 @@ const ValidatorRow = memo(function ValidatorRow({
 });
 
 function formatApy(apy: number | null): string | null {
-    return apy != null ? `${(apy * 100).toFixed(2)}%` : "-";
+    return apy != null ? `${apy.toFixed(2)}%` : "-";
 }
 
 function formatEffectiveCommissionRate(

@@ -21,7 +21,7 @@ export function BottomCardsPortal() {
         <div className="pointer-events-auto flex flex-col gap-3 p-4 pl-3">
             <div className="flex w-full gap-3">
                 <ValidatorsCard className="shrink-0 bg-card/50 backdrop-blur-sm" />
-                <TpsCard className="flex-1 bg-card/50 backdrop-blur-sm" />
+                <TpsCard className="w-full backdrop-blur-sm" />
                 <EpochCard className="w-fit shrink-0" />
             </div>
         </div>,
