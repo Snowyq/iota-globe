@@ -1,14 +1,13 @@
 "use client";
 
 import { OptionsContext } from "@/features/options/OptionsContext";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useEffectEvent } from "react";
 
 export function useOnNetworkChange(callback: () => void) {
     const { network } = useContext(OptionsContext);
-    const callbackRef = useRef(callback);
-    callbackRef.current = callback;
+    const onNetworkChange = useEffectEvent(callback);
 
     useEffect(() => {
-        callbackRef.current();
+        onNetworkChange();
     }, [network]);
 }

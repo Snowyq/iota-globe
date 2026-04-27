@@ -5,6 +5,7 @@ import { FormattedCell } from "@/components/FormattedCell";
 import { LiveBadge } from "@/components/LiveBadge";
 import { Page } from "@/components/Page";
 import { PageHeader } from "@/components/PageHeader";
+import { TableHeaderCell, TableHeaderCellProps as ColDef } from "@/components/TableHeaderCell";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     Table,
@@ -23,6 +24,14 @@ import { useState } from "react";
 
 const MAX_ITEMS = 100;
 
+const COLS: ColDef[] = [
+    { label: "Digest" },
+    { label: "Sender" },
+    { label: "Txns", align: "center" },
+    { label: "Gas", align: "right" },
+    { label: "Time", align: "right" },
+];
+
 type Stored = TransactionStreamItem & { arrivedAt: number };
 
 export default function TransactionsPage() {
@@ -34,14 +43,17 @@ export default function TransactionsPage() {
     useLiveStream<TransactionStreamItem>("/api/transactions/stream", (item) => {
         setTxs((prev) => {
             if (prev.some((t) => t.digest === item.digest)) return prev;
-            return [{ ...item, arrivedAt: Date.now() }, ...prev].slice(0, MAX_ITEMS);
+            return [{ ...item, arrivedAt: Date.now() }, ...prev].slice(
+                0,
+                MAX_ITEMS
+            );
         });
     });
 
     const isLoading = txs.length === 0;
 
     return (
-        <Page>
+        <Page className="">
             <PageHeader
                 title="Transactions"
                 description="Live feed from latest checkpoints"
@@ -52,26 +64,14 @@ export default function TransactionsPage() {
                 <TableCaption>Live IOTA transactions.</TableCaption>
                 <TableHeader>
                     <TableRow className="hover:bg-transparent!">
-                        <TableCell className="text-xs text-muted-foreground">
-                            Digest
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                            Sender
-                        </TableCell>
-                        <TableCell className="text-center text-xs text-muted-foreground">
-                            Txns
-                        </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">
-                            Gas
-                        </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">
-                            Time
-                        </TableCell>
+                        {COLS.map((col) => (
+                            <TableHeaderCell key={col.label} {...col} />
+                        ))}
                     </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="">
                     {isLoading
-                        ? Array.from({ length: 12 }).map((_, i) => (
+                        ? Array.from({ length: 20 }).map((_, i) => (
                               <TableRow key={i}>
                                   <TableCell>
                                       <Skeleton className="h-3 w-28" />

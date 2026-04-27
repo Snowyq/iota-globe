@@ -38,7 +38,7 @@ export function EpochCard({ className }: { className?: string }) {
     );
 
     return (
-        <Card size="sm" className={cn("w-full flex-row", className)}>
+        <Card size="sm" className={cn("w-full flex-row border-2 border-primary bg-primary/30 shadow-lg shadow-primary backdrop-blur-md", className)}>
             <CardContent className="flex flex-col gap-3 max-xs:w-full @[40rem]:flex-row">
                 <div className="flex flex-row gap-6 max-xs:justify-between">
                     <CardTitle className="w-fit text-nowrap">
