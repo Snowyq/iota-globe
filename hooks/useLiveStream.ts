@@ -20,7 +20,6 @@ export function useLiveStream<T>(
                 console.error("Failed to parse SSE message", path);
             }
         };
-        es.onerror = () => es.close();
         return () => es.close();
     }, [network, path]);
 }

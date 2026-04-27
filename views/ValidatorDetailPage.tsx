@@ -151,7 +151,7 @@ export default function ValidatorDetailPage() {
 
                 <Card className="w-full">
                     <CardHeader>
-                        <CardTitle>Previous Epoch</CardTitle>
+                        <CardTitle>Next Epoch</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 items-end gap-4 @[40rem]:grid-cols-2">
                         <Stat
