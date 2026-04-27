@@ -31,7 +31,7 @@ export default function ValidatorDetailPage() {
         if (selectedValidator.iotaAddress !== id) {
             router.replace(`/validators/${selectedValidator.iotaAddress}`);
         }
-    }, [selectedValidator?.iotaAddress]);
+    }, [selectedValidator?.iotaAddress, router, id, selectedValidator]);
 
     useOnNetworkChange(() => {
         if (!isLoading && !selectedValidator) {
