@@ -91,7 +91,9 @@ export function Stat({
     return (
         <div className={cn(statVariants({ size }), className)}>
             <div className={cn(innerClassVariants({ size }), innerClassName)}>
-                <span className={valueVariants({ size })}>{value ?? "—"}</span>
+                <span className={valueVariants({ size })}>
+                    {value == null || (typeof value === "number" && isNaN(value)) ? "—" : value}
+                </span>
                 {sub && <span className={subVariants({ size })}>{sub}</span>}
                 {withCopy && (
                     <Button
