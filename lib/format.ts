@@ -3,7 +3,8 @@ const NANO = 1_000_000_000;
 export type IotaFormatResult = { value: string; label: string; raw: number };
 
 export function formatNumber(n: number | null | undefined): IotaFormatResult {
-    if (n === null || n === undefined) return { value: "—", label: "", raw: 0 };
+    if (n === null || n === undefined || isNaN(n))
+        return { value: "—", label: "", raw: 0 };
     if (n >= 1_000_000_000)
         return { value: (n / 1_000_000_000).toFixed(2), label: "B", raw: n };
     if (n >= 1_000_000)
@@ -18,7 +19,7 @@ export function formatIota(
     prefix = true,
     decimals = 2
 ): IotaFormatResult {
-    if (n === null || n === undefined)
+    if (n === null || n === undefined || isNaN(n))
         return { value: "—", label: "IOTA", raw: 0 };
     const u = prefix ? " IOTA" : "";
     if (n >= 1_000_000_000) {
