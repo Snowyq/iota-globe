@@ -1,0 +1,31 @@
+@utility typo-h1 {
+    @apply scroll-m-20 font-heading text-4xl font-extrabold tracking-tight text-balance;
+}
+
+@utility typo-lead {
+    @apply text-xl leading-8;
+}
+
+@utility typo-h2 {
+    @apply scroll-m-20 font-heading text-3xl leading-9 font-medium sm:text-5xl sm:leading-13.5;
+}
+
+@utility typo-sub-h2 {
+    @apply scroll-m-20 font-heading text-xl leading-7.5 font-medium;
+}
+
+@utility typo-p {
+    @apply text-base leading-7;
+}
+
+@utility typo-h3 {
+    @apply scroll-m-20 font-heading text-2xl leading-7.5 font-medium;
+}
+
+@utility typo-h4 {
+    @apply scroll-m-20 font-heading text-xl leading-6 font-medium;
+}
+
+@utility typo-small {
+    @apply text-sm leading-5;
+}
