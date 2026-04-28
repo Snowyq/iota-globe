@@ -15,6 +15,7 @@ A recruitment project inspired by [gmonads.com](https://www.gmonads.com/). An in
 - Epochs and transactions pages
 - Live transaction / checkpoints / tps stream via SSE
 - Responsive layout, works on mobile
+- Fullscreen mode for desktops
 
 ## Stack
 
