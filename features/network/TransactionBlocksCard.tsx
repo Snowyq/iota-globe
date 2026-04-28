@@ -8,10 +8,11 @@ import { cn } from "@/lib/utils";
 import { useContext } from "react";
 
 export function TransactionBlocksCard({ className }: { className?: string }) {
-    const { totalTransactions, lastEpochTransactions } = useContext(NetworkContext);
+    const { totalTransactions, lastEpochTransactions } =
+        useContext(NetworkContext);
 
-    const total = totalTransactions ? formatNumber(Number(totalTransactions)) : null;
-    const lastEpoch = lastEpochTransactions ? formatNumber(Number(lastEpochTransactions)) : null;
+    const total = formatNumber(Number(totalTransactions) ?? null);
+    const lastEpoch = formatNumber(Number(lastEpochTransactions) ?? null);
 
     return (
         <Card className={cn(className)}>
@@ -19,8 +20,12 @@ export function TransactionBlocksCard({ className }: { className?: string }) {
                 <CardTitle>Transaction Blocks</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-                <Stat value={total} label="Total" />
-                <Stat value={lastEpoch} label="Last Epoch" />
+                <Stat value={total.value} sub={total.label} label="Total" />
+                <Stat
+                    value={lastEpoch.value}
+                    sub={lastEpoch.label}
+                    label="Last Epoch"
+                />
             </CardContent>
         </Card>
     );

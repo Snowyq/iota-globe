@@ -10,25 +10,34 @@ import { useContext } from "react";
 export function AddressesCard({ className }: { className?: string }) {
     const { addressMetrics } = useContext(NetworkContext);
 
-    const total = addressMetrics
-        ? formatNumber(Number(addressMetrics.cumulativeAddresses))
-        : null;
-    const totalActive = addressMetrics
-        ? formatNumber(Number(addressMetrics.cumulativeActiveAddresses))
-        : null;
-    const dailyActive = addressMetrics
-        ? Number(addressMetrics.dailyActiveAddresses).toLocaleString()
-        : null;
+    const {
+        cumulativeAddresses,
+        cumulativeActiveAddresses,
+        dailyActiveAddresses,
+    } = addressMetrics || {};
+
+    const total = formatNumber(Number(cumulativeAddresses));
+    const totalActive = formatNumber(Number(cumulativeActiveAddresses));
+    const dailyActive = Number(dailyActiveAddresses);
 
     return (
         <Card className={cn(className)}>
             <CardHeader>
                 <CardTitle>Addresses</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-                <Stat value={total} label="Total" />
-                <Stat value={totalActive} label="Total Active" size="sm" />
-                <Stat value={dailyActive} label="Daily Active" size="sm" />
+            <CardContent className="grid grid-cols-3 items-end gap-4">
+                <Stat value={total.value} sub={total.label} label="Total" />
+                <Stat
+                    value={totalActive.value}
+                    sub={totalActive.label}
+                    label="Total Active"
+                    size="sm"
+                />
+                <Stat
+                    value={dailyActive ?? "—"}
+                    label="Daily Active"
+                    size="sm"
+                />
             </CardContent>
         </Card>
     );

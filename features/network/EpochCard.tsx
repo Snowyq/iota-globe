@@ -29,7 +29,9 @@ export function EpochCard({ className }: { className?: string }) {
         : null;
 
     const endMs = epoch ? epoch.startMs + epoch.durationMs : null;
+
     const remainingMs = endMs !== null ? Math.max(0, endMs - now) : null;
+
     const progress = epoch
         ? Math.min(1, (now - epoch.startMs) / epoch.durationMs)
         : null;
@@ -38,6 +40,10 @@ export function EpochCard({ className }: { className?: string }) {
         networkStats?.epochStartTimestampMs,
         "long"
     );
+
+    const endDisplay = showEnd
+        ? formatTimestamp(endMs, "long")
+        : formatDuration(remainingMs);
 
     return (
         <Card
@@ -76,11 +82,7 @@ export function EpochCard({ className }: { className?: string }) {
                             </span>
                         </Button>
                         <span className="font-medium text-primary-foreground tabular-nums">
-                            {showEnd
-                                ? formatTimestamp(endMs, "long")
-                                : remainingMs !== null
-                                  ? formatDuration(remainingMs)
-                                  : "—"}
+                            {endDisplay}
                         </span>
                     </div>
                     <ProgressBar progress={progress ?? 0} />
@@ -94,7 +96,7 @@ function ProgressBar({ progress }: { progress: number }) {
     return (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary-foreground/20">
             <div
-                className="h-full rounded-full bg-primary-foreground/80 transition-[width] duration-1000 ease-linear"
+                className="h-full rounded-full bg-primary-foreground/80"
                 style={{ width: `${progress * 100}%` }}
             />
         </div>

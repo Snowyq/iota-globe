@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
             const load = async () => {
                 try {
                     const m = await client.getNetworkMetrics();
-                    send({ currentTps: m.currentTps, currentCheckpoint: m.currentCheckpoint });
+                    send({
+                        currentTps: m.currentTps,
+                        currentCheckpoint: m.currentCheckpoint,
+                    });
                 } catch {}
             };
 

@@ -12,7 +12,12 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { GlobeContext } from "@/features/globe/GlobeContext";
-import { formatIota } from "@/lib/format";
+import {
+    formatApy,
+    formatCommissionRate,
+    formatIota,
+    shortString,
+} from "@/lib/format";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useContext, useState } from "react";
@@ -26,37 +31,20 @@ type SortKey =
     | "votingPower"
     | "lastReward";
 
-type Filter = "all" | "committee" | "active" | "pending" | "at-risk";
+type Filter = "all" | "committee" | "active" | "at-risk";
 
 const COLUMNS: {
     key: SortKey;
     label: string;
     align?: "left" | "center" | "right";
 }[] = [
-    { key: "name", label: "Validator" },
+    { key: "name", label: "Validator", align: "left" },
     { key: "stake", label: "Stake", align: "right" },
-    { key: "apy", label: "APY" },
+    { key: "apy", label: "APY", align: "right" },
     { key: "commission", label: "Commission", align: "right" },
     { key: "votingPower", label: "Voting Power", align: "right" },
     { key: "lastReward", label: "Last Epoch Reward", align: "right" },
 ];
-
-function getSortValue(v: Validator, key: SortKey): number | string {
-    switch (key) {
-        case "name":
-            return v.payload.name.toLowerCase();
-        case "stake":
-            return v.stats.stakeIOTA;
-        case "apy":
-            return v.stats.apyPercent ?? -Infinity;
-        case "commission":
-            return Number(v.payload.effectiveCommissionRate ?? 0);
-        case "votingPower":
-            return v.stats.stakePercent;
-        case "lastReward":
-            return v.stats.lastEpochRewardIOTA ?? -Infinity;
-    }
-}
 
 export default function ValidatorsTable({
     query,
@@ -79,7 +67,6 @@ export default function ValidatorsTable({
         if (filter === "committee") return v.isCommitteeMember;
         if (filter === "active") return !v.isCommitteeMember;
         if (filter === "at-risk") return v.isAtRisk;
-        if (filter === "pending") return false;
         return true;
     });
     const sorted = [...filtered].sort((a, b) => {
@@ -144,16 +131,6 @@ export default function ValidatorsTable({
                     Array.from({ length: 8 }).map((_, i) => (
                         <ValidatorRowSkeleton key={i} />
                     ))
-                ) : filter === "pending" ? (
-                    <TableRow>
-                        <TableCell
-                            colSpan={6}
-                            className="py-10 text-center text-sm text-muted-foreground"
-                        >
-                            Pending validator details are not available via
-                            public RPC.
-                        </TableCell>
-                    </TableRow>
                 ) : sorted.length === 0 ? (
                     <TableRow>
                         <TableCell
@@ -214,10 +191,11 @@ const ValidatorRow = memo(function ValidatorRow({
 }) {
     const { stats, payload } = validator;
     const stake = formatIota(stats.stakeIOTA);
-    const lastReward =
-        stats.lastEpochRewardIOTA != null
-            ? formatIota(stats.lastEpochRewardIOTA)
-            : { value: null, label: "IOTA" };
+    const lastReward = formatIota(stats.lastEpochRewardIOTA);
+    const apy = formatApy(stats.apyPercent);
+    const commission = formatCommissionRate(
+        Number(payload.effectiveCommissionRate)
+    );
 
     return (
         <TableRow
@@ -239,21 +217,20 @@ const ValidatorRow = memo(function ValidatorRow({
                         {payload.name.slice(0, 1)}
                     </div>
                 )}
-                <span className="text-xs">{payload.name}</span>
+                <span className="text-xs">{shortString(payload.name, 20)}</span>
             </TableCell>
             <FormattedCell
                 align="right"
                 value={stake.value}
                 label={stake.label}
             />
-            <FormattedCell align="right" value={formatApy(stats.apyPercent)} />
+            <FormattedCell align="right" value={apy.value} label={apy.label} />
             <FormattedCell
                 align="right"
-                value={formatEffectiveCommissionRate(
-                    Number(payload.effectiveCommissionRate)
-                )}
+                value={commission.value}
+                label={commission.label}
             />
-            <FormattedCell align="right" value={`${stats.stakePercent}%`} />
+            <FormattedCell align="right" value={stats.stakePercent} label="%" />
             <FormattedCell
                 align="right"
                 value={lastReward.value}
@@ -263,12 +240,19 @@ const ValidatorRow = memo(function ValidatorRow({
     );
 });
 
-function formatApy(apy: number | null): string | null {
-    return apy != null ? `${apy.toFixed(2)}%` : "-";
-}
-
-function formatEffectiveCommissionRate(
-    rate: number | null | undefined
-): string {
-    return rate != null ? `${(rate / 100).toFixed(2)}%` : "-";
+function getSortValue(v: Validator, key: SortKey): number | string {
+    switch (key) {
+        case "name":
+            return v.payload.name.toLowerCase();
+        case "stake":
+            return v.stats.stakeIOTA;
+        case "apy":
+            return v.stats.apyPercent ?? -Infinity;
+        case "commission":
+            return Number(v.payload.effectiveCommissionRate ?? 0);
+        case "votingPower":
+            return v.stats.stakePercent;
+        case "lastReward":
+            return v.stats.lastEpochRewardIOTA ?? -Infinity;
+    }
 }

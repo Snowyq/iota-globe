@@ -70,6 +70,7 @@ export default function EpochsPage() {
 
         const url = `/api/epochs?dataset=${network}${cursor ? `&cursor=${cursor}` : ""}`;
 
+        // eslint-disable-next-line
         setIsLoading(true);
         fetch(url)
             .then((r) => r.json() as Promise<EpochsApiResponse>)
@@ -88,7 +89,10 @@ export default function EpochsPage() {
 
     return (
         <Page className="">
-            <PageHeader title="Epochs" description="Recent epoch statistics" />
+            <PageHeader
+                title="Epochs"
+                description="Browse IOTA epoch history"
+            />
 
             <Table className="w-full">
                 <TableCaption>IOTA epoch history.</TableCaption>

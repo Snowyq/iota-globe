@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
                     if (!tx.digest || seen.has(tx.digest)) continue;
                     seen.add(tx.digest);
 
-                    const sender = tx.transaction?.data.sender ?? SYSTEM_ADDRESS;
+                    const sender =
+                        tx.transaction?.data.sender ?? SYSTEM_ADDRESS;
                     const kind = tx.transaction?.data.transaction;
                     const gas = tx.effects?.gasUsed;
 
@@ -72,26 +73,28 @@ export async function GET(request: NextRequest) {
                                       1e9
                               )
                             : 0,
-                        timestampMs: cp.timestampMs,
+                        timestampMs: tx.timestampMs ?? cp.timestampMs,
                         checkpoint: tx.checkpoint ?? String(seq),
                     });
                 }
             };
 
             try {
-                lastSeq = Number(await client.getLatestCheckpointSequenceNumber());
+                lastSeq = Number(
+                    await client.getLatestCheckpointSequenceNumber()
+                );
                 await sendCheckpoint(lastSeq - 1);
                 await sendCheckpoint(lastSeq);
             } catch {}
 
             const interval = setInterval(async () => {
                 try {
-                    const latest = Number(await client.getLatestCheckpointSequenceNumber());
+                    const latest = Number(
+                        await client.getLatestCheckpointSequenceNumber()
+                    );
                     if (latest <= lastSeq) return;
-                    const toFetch = Math.min(latest - lastSeq, 3);
-                    for (let i = 1; i <= toFetch; i++)
-                        await sendCheckpoint(lastSeq + i);
-                    lastSeq += toFetch;
+                    await sendCheckpoint(latest);
+                    lastSeq = latest;
                 } catch {}
             }, POLL_MS);
 
