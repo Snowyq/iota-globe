@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const datasetParam = searchParams.get("dataset") ?? "testnet";
     const cursor = searchParams.get("cursor") ?? null;
 
-    if (!(datasetParam in datasets))
+    if (!Object.hasOwn(datasets, datasetParam))
         return new Response(JSON.stringify({ error: "Invalid dataset" }), {
             status: 400,
         });
