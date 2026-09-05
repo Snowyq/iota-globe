@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     const datasetParam =
         request.nextUrl.searchParams.get("dataset") ?? "testnet";
 
-    if (!(datasetParam in datasets))
+    if (!Object.hasOwn(datasets, datasetParam))
         return new Response(JSON.stringify({ error: "Invalid dataset" }), {
             status: 400,
             headers: { "Content-Type": "application/json" },

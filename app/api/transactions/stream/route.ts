@@ -1,4 +1,5 @@
 import { NETWORK_URLS as datasets } from "@/lib/networks";
+import { createSseStream } from "@/lib/sse";
 import { IotaClient } from "@iota/iota-sdk/client";
 import { type NextRequest } from "next/server";
 
@@ -19,24 +20,22 @@ export type TransactionStreamItem = {
 export async function GET(request: NextRequest) {
     const datasetParam =
         request.nextUrl.searchParams.get("dataset") ?? "testnet";
-    if (!(datasetParam in datasets))
+    if (!Object.hasOwn(datasets, datasetParam))
         return new Response("Invalid dataset", { status: 400 });
 
     const client = new IotaClient({ url: datasets[datasetParam] });
-    const encoder = new TextEncoder();
-
-    const stream = new ReadableStream({
-        async start(controller) {
-            const seen = new Set<string>();
-            let lastSeq = -1;
-
-            const emit = (data: TransactionStreamItem) =>
-                controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
-                );
-
+    const seen = new Set<string>();
+    let lastSeq: number | null = null;
+    const stream = createSseStream<TransactionStreamItem>({
+        signal: request.signal,
+        intervalMs: POLL_MS,
+        async poll(emit, signal) {
             const sendCheckpoint = async (seq: number) => {
-                const cp = await client.getCheckpoint({ id: String(seq) });
+                const cp = await client.getCheckpoint({
+                    id: String(seq),
+                    signal,
+                });
+                if (signal.aborted) return;
                 const newDigests = (cp.transactions ?? [])
                     .filter((d) => !seen.has(d))
                     .slice(0, 20);
@@ -45,11 +44,15 @@ export async function GET(request: NextRequest) {
                 const txs = await client.multiGetTransactionBlocks({
                     digests: newDigests,
                     options: { showEffects: true, showInput: true },
+                    signal,
                 });
+                if (signal.aborted) return;
 
                 for (const tx of txs) {
                     if (!tx.digest || seen.has(tx.digest)) continue;
                     seen.add(tx.digest);
+                    if (seen.size > 2_000)
+                        seen.delete(seen.values().next().value!);
 
                     const sender =
                         tx.transaction?.data.sender ?? SYSTEM_ADDRESS;
@@ -79,29 +82,15 @@ export async function GET(request: NextRequest) {
                 }
             };
 
-            try {
-                lastSeq = Number(
-                    await client.getLatestCheckpointSequenceNumber()
-                );
-                await sendCheckpoint(lastSeq - 1);
-                await sendCheckpoint(lastSeq);
-            } catch {}
-
-            const interval = setInterval(async () => {
-                try {
-                    const latest = Number(
-                        await client.getLatestCheckpointSequenceNumber()
-                    );
-                    if (latest <= lastSeq) return;
-                    await sendCheckpoint(latest);
-                    lastSeq = latest;
-                } catch {}
-            }, POLL_MS);
-
-            request.signal.addEventListener("abort", () => {
-                clearInterval(interval);
-                controller.close();
-            });
+            const latest = Number(
+                await client.getLatestCheckpointSequenceNumber({ signal })
+            );
+            if (signal.aborted || (lastSeq != null && latest <= lastSeq))
+                return;
+            if (lastSeq == null && latest > 0) await sendCheckpoint(latest - 1);
+            if (signal.aborted) return;
+            await sendCheckpoint(latest);
+            lastSeq = latest;
         },
     });
 

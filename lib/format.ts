@@ -102,7 +102,7 @@ export function formatTimestamp(
 }
 
 export function shortString(s: string, head = 6, tail = 0): string {
-    if (s.length <= head) return s;
+    if (s.length <= head + Math.max(0, tail)) return s;
     return s.slice(0, head) + "..." + (tail > 0 ? s.slice(-tail) : "");
 }
 
