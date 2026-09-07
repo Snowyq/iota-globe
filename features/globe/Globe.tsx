@@ -1,399 +1,375 @@
 "use client";
 
-import earthDarkTexture from "@/assets/earth-dark.jpg";
-import landTopology from "@/assets/land_10m.json";
-import texture from "@/assets/Textures.jpg";
 import {
-    ARC_MID_COLOR,
-    CustomLayerDatum,
-} from "@/features/globe/customLayerData";
-import { GlobeContext } from "@/features/globe/GlobeContext";
-import { randomInt } from "@/lib/math";
-import { cn } from "@/lib/utils";
-import {
-    useCallback,
     useContext,
     useEffect,
-    useLayoutEffect,
+    useEffectEvent,
     useMemo,
     useRef,
     useState,
 } from "react";
-import { createPortal } from "react-dom";
-import GlobeGL, { type GlobeMethods } from "react-globe.gl";
-import * as THREE from "three";
-import * as topojson from "topojson-client";
-import { ClusterMarker, type ValidatorCluster } from "./ClusterMarker";
-
-type GlobePoint = {
-    lat: number;
-    lng: number;
-    iotaAddress: string;
-};
-
-type GlobeArc = {
-    startLat: number;
-    startLng: number;
-    endLat: number;
-    endLng: number;
-    color: [string, string, string];
-    time: number;
-};
-
-type GlobeProps = {
-    className?: string;
-    onReady?: (methods: GlobeMethods) => void;
-    variant?: "home" | "globe";
-    globeOffset?: [number, number];
-    targetAltitude?: number;
-    customLayerData: CustomLayerDatum[];
-    ref?: React.RefObject<GlobeMethods | undefined>;
-};
-
-type ClusterPoint = ValidatorCluster;
-
-const INITIAL_ALTITUDE = 3;
-const CLUSTER_BUBBLE_ALTITUDE = 0.06;
-const ARC_ANIMATE_TIME_MIN = 300;
-const ARC_ANIMATE_TIME_MAX = 800;
-
-const LAND_FEATURES = (
-    topojson.feature(
-        landTopology as unknown as Parameters<typeof topojson.feature>[0],
-        (
-            landTopology as unknown as {
-                objects: { land: Parameters<typeof topojson.feature>[1] };
-            }
-        ).objects.land
-    ) as GeoJSON.FeatureCollection
-).features;
+import { GlobeContext } from "./GlobeContext";
+import { ClusterMarker } from "./ClusterMarker";
+import { clusterValidators, getClusterCellSize } from "./clustering";
+import type {
+    GlobeController,
+    MapMode,
+    PointOfView,
+    WorkerInput,
+    WorkerOutput,
+} from "./workerTypes";
 
 export function Globe({
-    className,
     onReady,
-    ref: passedRef,
-    variant,
-    globeOffset = [0, 0],
-    targetAltitude,
-    customLayerData,
-}: GlobeProps) {
-    const { onGlobeReady: notifyGlobeReady, geoPoints } =
+    mode = "globe",
+    touchInteractive = false,
+}: {
+    onReady?: (controller: GlobeController) => void;
+    mode?: MapMode;
+    touchInteractive?: boolean;
+}) {
+    const { onGlobeReady, onGlobeDispose, geoPoints, setAutoRotate } =
         useContext(GlobeContext);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const localGlobeRef = useRef<GlobeMethods | undefined>(undefined);
-    const globeRef = passedRef || localGlobeRef;
-
-    // Animate to target altitude when it changes
-    useEffect(() => {
-        if (targetAltitude === undefined) return;
-        globeRef.current?.pointOfView({ altitude: targetAltitude }, 500);
-    }, [targetAltitude, globeRef]);
-
-    // Handle resizing: Globe intended to be used without SSR - just in case checking
-    const [size, setSize] = useState(() => ({
-        width: typeof window !== "undefined" ? window.innerWidth : 1,
-        height: typeof window !== "undefined" ? window.innerHeight : 1,
-    }));
-
-    const [clusterCellSize, setClusterCellSize] = useState(
-        getCellSize(INITIAL_ALTITUDE)
+    const rootRef = useRef<HTMLDivElement>(null);
+    const workerRef = useRef<Worker | null>(null);
+    const markerRefs = useRef(new Map<string, HTMLDivElement>());
+    const modeRef = useRef(mode);
+    const touchInteractiveRef = useRef(touchInteractive);
+    const resetGestureRef = useRef<() => void>(() => {});
+    const [cell, setCell] = useState(24);
+    const [failure, setFailure] = useState<string | null>(null);
+    const clusters = useMemo(
+        () => clusterValidators(geoPoints, cell),
+        [geoPoints, cell]
     );
-
-    const contextArcsData = useMemo(
-        () => buildStableArcs(geoPoints, 3, ARC_MID_COLOR),
-        [geoPoints]
-    );
-
-    const globeMaterial = useMemo(
-        () =>
-            new THREE.MeshPhongMaterial({
-                color: "#0f2856",
-                opacity: 0.92,
-                transparent: true,
-            }),
-        []
-    );
-
-    const polygonCapMaterial = useMemo(
-        () =>
-            new THREE.MeshPhongMaterial({
-                color: "#3368cc",
-                side: THREE.DoubleSide,
-                map: new THREE.TextureLoader().load(texture.src),
-            }),
-        []
-    );
+    const latestData = useRef({ points: geoPoints, clusters });
+    const notifyReady = useEffectEvent((controller: GlobeController) => {
+        onGlobeReady(controller);
+        onReady?.(controller);
+    });
+    const notifyDispose = useEffectEvent(() => onGlobeDispose());
+    const stopRotation = useEffectEvent(() => setAutoRotate(false));
 
     useEffect(() => {
-        const element = containerRef.current;
-        if (!element) return;
+        touchInteractiveRef.current = touchInteractive;
+        resetGestureRef.current();
+    }, [touchInteractive]);
 
-        const updateSize = () =>
-            setSize({
-                width: element.clientWidth,
-                height: element.clientHeight,
-            });
+    useEffect(() => {
+        latestData.current = { points: geoPoints, clusters };
+        workerRef.current?.postMessage({
+            type: "data",
+            ...latestData.current,
+        } satisfies WorkerInput);
+    }, [geoPoints, clusters]);
+    useEffect(() => {
+        modeRef.current = mode;
+        workerRef.current?.postMessage({
+            type: "mode",
+            mode,
+        } satisfies WorkerInput);
+    }, [mode]);
 
-        updateSize();
-        const observer = new ResizeObserver(updateSize);
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, []);
-
-    const clusteredPoints = useMemo<ClusterPoint[]>(() => {
-        if (geoPoints.length === 0) return [];
-
-        const buckets = new Map<string, GlobePoint[]>();
-
-        geoPoints.forEach((point) => {
-            const latBucket =
-                Math.round(point.lat / clusterCellSize) * clusterCellSize;
-            const lngBucket =
-                Math.round(point.lng / clusterCellSize) * clusterCellSize;
-            const key = `${latBucket}:${lngBucket}`;
-            const bucket = buckets.get(key) ?? [];
-            bucket.push(point);
-            buckets.set(key, bucket);
-        });
-
-        return [...buckets.values()].map((bucket) => {
-            const lat = bucket.reduce((s, p) => s + p.lat, 0) / bucket.length;
-            const lng = bucket.reduce((s, p) => s + p.lng, 0) / bucket.length;
-            const validators = bucket.map((p) => p.iotaAddress);
+    useEffect(() => {
+        const root = rootRef.current;
+        if (!root) return;
+        if (
+            !window.Worker ||
+            !HTMLCanvasElement.prototype.transferControlToOffscreen
+        ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setFailure(
+                "This browser does not support background map rendering."
+            );
+            return;
+        }
+        let disposed = false,
+            worker: Worker | null = null;
+        let firstFrame = 0,
+            secondFrame = 0,
+            canvas: HTMLCanvasElement | null = null;
+        let width = 1,
+            height = 1,
+            inView = true;
+        let view: PointOfView = { lat: 26, lng: 8, altitude: 2.1 };
+        let autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches;
+        const pointers = new Map<number, { x: number; y: number }>();
+        let center: { x: number; y: number } | null = null;
+        let pinchDistance = 0,
+            pinchAltitude = view.altitude;
+        const midpoint = () => {
+            const values = [...pointers.values()];
             return {
-                id: `${Math.round(lat * 1000)}:${Math.round(lng * 1000)}`,
-                lat,
-                lng,
-                count: bucket.length,
-                validators,
+                x: values.reduce((sum, p) => sum + p.x, 0) / values.length,
+                y: values.reduce((sum, p) => sum + p.y, 0) / values.length,
             };
-        });
-    }, [geoPoints, clusterCellSize]);
-
-    const clusterContainersRef = useRef(new Map<string, HTMLElement>());
-    const [clusterPortals, setClusterPortals] = useState<
-        { id: string; cluster: ClusterPoint; container: HTMLElement }[]
-    >([]);
-
-    const handleHtmlElement = useCallback((point: object) => {
-        const cluster = point as ClusterPoint;
-        if (!clusterContainersRef.current.has(cluster.id)) {
-            clusterContainersRef.current.set(
-                cluster.id,
-                document.createElement("div")
-            );
-        }
-        return clusterContainersRef.current.get(cluster.id)!;
-    }, []);
-
-    useLayoutEffect(() => {
-        const currentIds = new Set(clusteredPoints.map((c) => c.id));
-        for (const id of [...clusterContainersRef.current.keys()]) {
-            if (!currentIds.has(id)) clusterContainersRef.current.delete(id);
-        }
-        for (const cluster of clusteredPoints) {
-            if (!clusterContainersRef.current.has(cluster.id)) {
-                clusterContainersRef.current.set(
-                    cluster.id,
-                    document.createElement("div")
-                );
+        };
+        const distance = () => {
+            const [a, b] = [...pointers.values()];
+            return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+        };
+        const resetGesture = () => {
+            for (const id of pointers.keys())
+                if (canvas?.hasPointerCapture?.(id))
+                    canvas.releasePointerCapture(id);
+            pointers.clear();
+            center = null;
+            pinchDistance = 0;
+        };
+        resetGestureRef.current = resetGesture;
+        const post = (message: WorkerInput) => worker?.postMessage(message);
+        const controls = {
+            get autoRotate() {
+                return autoRotate;
+            },
+            set autoRotate(value: boolean) {
+                autoRotate = value;
+                post({ type: "rotate", enabled: value });
+            },
+        };
+        const controller: GlobeController = {
+            pointOfView: ((
+                next?: Partial<PointOfView>,
+                duration: number = 0
+            ) => {
+                if (!next) return { ...view };
+                view = { ...view, ...next };
+                post({ type: "view", view: next, duration });
+            }) as GlobeController["pointOfView"],
+            controls: () => controls,
+            renderer: () => ({ domElement: canvas! }),
+        };
+        const resize = () => {
+            width = Math.max(1, Math.round(root.clientWidth));
+            height = Math.max(1, Math.round(root.clientHeight));
+            post({
+                type: "resize",
+                width,
+                height,
+                pixelRatio: window.devicePixelRatio,
+            });
+            setCell(getClusterCellSize(view.altitude, width, modeRef.current));
+        };
+        const visibility = () =>
+            post({ type: "visibility", visible: inView && !document.hidden });
+        const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const motion = () => {
+            post({ type: "motion", reduced: media.matches });
+            if (media.matches) stopRotation();
+        };
+        const onPointerDown = (event: PointerEvent) => {
+            if (event.button !== 0 || !canvas) return;
+            if (event.pointerType === "touch" && !touchInteractiveRef.current)
+                return;
+            if (pointers.size >= 2) return;
+            pointers.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
+            });
+            canvas.setPointerCapture?.(event.pointerId);
+            center = midpoint();
+            pinchDistance = distance();
+            pinchAltitude = view.altitude;
+            stopRotation();
+        };
+        const onPointerMove = (event: PointerEvent) => {
+            if (!pointers.has(event.pointerId) || !center) return;
+            if (event.pointerType === "touch" && !touchInteractiveRef.current) {
+                resetGesture();
+                return;
             }
-        }
-        setClusterPortals(
-            clusteredPoints.map((cluster) => ({
-                id: cluster.id,
-                cluster,
-                container: clusterContainersRef.current.get(cluster.id)!,
-            }))
+            event.preventDefault();
+            pointers.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
+            });
+            const next = midpoint();
+            post({
+                type: "drag",
+                dx: next.x - center.x,
+                dy: next.y - center.y,
+            });
+            center = next;
+            const nextDistance = distance();
+            if (pinchDistance > 0 && nextDistance > 0)
+                controller.pointOfView({
+                    altitude: Math.max(
+                        0.55,
+                        Math.min(
+                            5,
+                            (pinchAltitude * pinchDistance) / nextDistance
+                        )
+                    ),
+                });
+        };
+        const onPointerUp = (event: PointerEvent) => {
+            pointers.delete(event.pointerId);
+            if (canvas?.hasPointerCapture?.(event.pointerId))
+                canvas.releasePointerCapture(event.pointerId);
+            center = pointers.size ? midpoint() : null;
+            pinchDistance = 0;
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            const steps: Record<string, [number, number]> = {
+                ArrowLeft: [24, 0],
+                ArrowRight: [-24, 0],
+                ArrowUp: [0, 20],
+                ArrowDown: [0, -20],
+            };
+            if (steps[event.key]) {
+                event.preventDefault();
+                stopRotation();
+                post({
+                    type: "drag",
+                    dx: steps[event.key][0],
+                    dy: steps[event.key][1],
+                });
+            }
+            if (["+", "=", "-"].includes(event.key)) {
+                event.preventDefault();
+                controller.pointOfView({
+                    altitude: Math.max(
+                        0.55,
+                        Math.min(
+                            5,
+                            view.altitude * (event.key === "-" ? 1.2 : 0.85)
+                        )
+                    ),
+                });
+            }
+        };
+        const observer = new ResizeObserver(resize);
+        const intersection = new IntersectionObserver(
+            ([entry]) => {
+                inView = entry.isIntersecting;
+                visibility();
+            },
+            { rootMargin: "100px" }
         );
-    }, [clusteredPoints]);
-
-    const handleVisibilityModifier = useCallback(
-        (element: HTMLElement, isVisible: boolean) => {
-            element.style.opacity = isVisible ? "1" : "0";
-            element.style.pointerEvents = isVisible ? "auto" : "none";
-        },
-        []
-    );
-
-    const handleCustomThreeObject = useCallback((point: object) => {
-        const datum = point as CustomLayerDatum;
-        if (datum.kind === "mesh") return createMesh();
-        return new THREE.Mesh(
-            new THREE.SphereGeometry(datum.size),
-            new THREE.MeshBasicMaterial({ color: datum.color })
-        );
+        // Allow the page and its loader to paint before creating the worker.
+        firstFrame = requestAnimationFrame(() => {
+            secondFrame = requestAnimationFrame(() => {
+                if (disposed) return;
+                try {
+                    canvas = document.createElement("canvas");
+                    canvas.className = "globe-worker-canvas";
+                    canvas.tabIndex = 0;
+                    canvas.setAttribute(
+                        "aria-label",
+                        "Interactive network map. Drag or use arrow keys to pan. Use plus and minus to zoom."
+                    );
+                    root.prepend(canvas);
+                    width = Math.max(1, root.clientWidth);
+                    height = Math.max(1, root.clientHeight);
+                    const offscreen = canvas.transferControlToOffscreen();
+                    worker = new Worker(
+                        new URL("./globe.worker.ts", import.meta.url),
+                        { type: "module", name: "iota-network-map" }
+                    );
+                    workerRef.current = worker;
+                    worker.onmessage = (event: MessageEvent<WorkerOutput>) => {
+                        if (disposed) return;
+                        const message = event.data;
+                        if (message.type === "ready") {
+                            notifyReady(controller);
+                            visibility();
+                        }
+                        if (message.type === "error")
+                            setFailure(message.message);
+                        if (message.type === "frame") {
+                            view = message.view;
+                            setCell((previous) => {
+                                const next = getClusterCellSize(
+                                    view.altitude,
+                                    width,
+                                    modeRef.current
+                                );
+                                return previous === next ? previous : next;
+                            });
+                            for (const marker of message.markers) {
+                                const node = markerRefs.current.get(marker.id);
+                                if (!node) continue;
+                                node.hidden = !marker.visible;
+                                node.inert = !marker.visible;
+                                if (marker.visible)
+                                    node.style.transform = `translate3d(${marker.x}px, ${marker.y}px, 0)`;
+                            }
+                        }
+                    };
+                    worker.onerror = (event) => {
+                        event.preventDefault();
+                        if (!disposed)
+                            setFailure(
+                                "The background map renderer could not start."
+                            );
+                    };
+                    worker.postMessage(
+                        {
+                            type: "init",
+                            canvas: offscreen,
+                            width,
+                            height,
+                            pixelRatio: window.devicePixelRatio,
+                            reducedMotion: media.matches,
+                            mode: modeRef.current,
+                        } satisfies WorkerInput,
+                        [offscreen]
+                    );
+                    post({ type: "data", ...latestData.current });
+                    observer.observe(root);
+                    intersection.observe(root);
+                    canvas.addEventListener("pointerdown", onPointerDown);
+                    canvas.addEventListener("pointermove", onPointerMove);
+                    canvas.addEventListener("pointerup", onPointerUp);
+                    canvas.addEventListener("pointercancel", onPointerUp);
+                    canvas.addEventListener("lostpointercapture", onPointerUp);
+                    canvas.addEventListener("keydown", onKeyDown);
+                    document.addEventListener("visibilitychange", visibility);
+                    media.addEventListener("change", motion);
+                } catch {
+                    setFailure("The background map renderer is unavailable.");
+                }
+            });
+        });
+        return () => {
+            disposed = true;
+            cancelAnimationFrame(firstFrame);
+            cancelAnimationFrame(secondFrame);
+            observer.disconnect();
+            intersection.disconnect();
+            document.removeEventListener("visibilitychange", visibility);
+            media.removeEventListener("change", motion);
+            worker?.terminate();
+            workerRef.current = null;
+            resetGesture();
+            resetGestureRef.current = () => {};
+            canvas?.remove();
+            notifyDispose();
+        };
     }, []);
 
-    const handleCustomThreeObjectUpdate = useCallback(
-        (obj: THREE.Object3D, point: object) => {
-            const datum = point as CustomLayerDatum;
-            if (datum.kind !== "star") return;
-            Object.assign(
-                obj.position,
-                globeRef.current?.getCoords(
-                    datum.lat,
-                    datum.lng,
-                    datum.altitude
-                )
-            );
-        },
-        [globeRef]
-    );
-
+    if (failure) throw new Error(failure);
     return (
         <div
-            ref={containerRef}
-            className={cn("absolute inset-0 z-0", className)}
+            className="globe-worker-stage"
+            ref={rootRef}
+            data-touch-interactive={touchInteractive}
         >
-            <GlobeGL
-                ref={globeRef}
-                width={size.width}
-                height={size.height}
-                globeOffset={globeOffset}
-                backgroundColor="rgba(0,0,0,0)"
-                rendererConfig={{ alpha: true, antialias: true }}
-                globeImageUrl={
-                    variant === "globe" ? earthDarkTexture.src : undefined
-                }
-                globeMaterial={variant === "home" ? globeMaterial : undefined}
-                polygonsData={variant === "home" ? LAND_FEATURES : undefined}
-                polygonCapMaterial={
-                    variant === "home" ? polygonCapMaterial : undefined
-                }
-                polygonSideColor={
-                    variant === "home" ? () => "#00000000" : undefined
-                }
-                polygonAltitude={variant === "home" ? 0.01 : undefined}
-                bumpImageUrl={undefined}
-                customLayerData={customLayerData}
-                customThreeObject={handleCustomThreeObject}
-                customThreeObjectUpdate={handleCustomThreeObjectUpdate}
-                showAtmosphere={true}
-                atmosphereColor="#5595dc"
-                atmosphereAltitude={0.35}
-                htmlElementsData={clusteredPoints}
-                htmlLat="lat"
-                htmlLng="lng"
-                htmlAltitude={CLUSTER_BUBBLE_ALTITUDE}
-                htmlElement={handleHtmlElement}
-                htmlElementVisibilityModifier={handleVisibilityModifier}
-                htmlTransitionDuration={0}
-                pointsData={clusteredPoints}
-                pointAltitude={CLUSTER_BUBBLE_ALTITUDE}
-                pointRadius={0.2}
-                pointColor={() => "rgba(147,197,253,0.9)"}
-                pointsMerge={true}
-                pointResolution={2}
-                arcsData={contextArcsData}
-                arcColor="color"
-                arcAltitudeAutoScale={0.3}
-                arcStroke={0.3}
-                arcDashLength={0.9}
-                arcDashGap={2}
-                arcDashAnimateTime="time"
-                onGlobeReady={() => {
-                    requestAnimationFrame(() => {
-                        const globe = globeRef.current;
-                        if (!globe) return;
-
-                        onReady?.(globe);
-                        notifyGlobeReady(globe);
-
-                        const controls = globe.controls();
-                        if (!controls) return;
-
-                        controls.autoRotate = true;
-                        controls.autoRotateSpeed = 0.35;
-                        controls.enablePan = false;
-                        controls.enableZoom = true;
-                        controls.enableDamping = true;
-                        controls.dampingFactor = 0.08;
-                        controls.minDistance = 200;
-                        controls.maxDistance = 500;
-
-                        globe.pointOfView({
-                            lat: 19.054339351561637,
-                            lng: -50.421161072148465,
-                            altitude: INITIAL_ALTITUDE,
-                        });
-                        setClusterCellSize(getCellSize(INITIAL_ALTITUDE));
-                    });
-                }}
-                onZoom={(pov) => {
-                    const next = getCellSize(pov.altitude);
-                    setClusterCellSize(next);
-                }}
-            />
-            {clusterPortals.map(({ id, cluster, container }) =>
-                createPortal(<ClusterMarker cluster={cluster} />, container, id)
-            )}
+            {clusters.map((cluster) => (
+                <div
+                    key={cluster.id}
+                    hidden
+                    inert
+                    className="globe-marker-anchor"
+                    ref={(node) => {
+                        if (node) markerRefs.current.set(cluster.id, node);
+                        else markerRefs.current.delete(cluster.id);
+                    }}
+                >
+                    <ClusterMarker cluster={cluster} />
+                </div>
+            ))}
         </div>
     );
-}
-
-function buildStableArcs(
-    points: GlobePoint[],
-    linksPerPoint: number,
-    midColor: string
-): GlobeArc[] {
-    if (points.length < 2) return [];
-
-    const arcs: GlobeArc[] = [];
-
-    points.forEach((source, si) => {
-        const targets = points
-            .filter((_, ti) => ti !== si)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, linksPerPoint);
-
-        targets.forEach((target) => {
-            arcs.push({
-                startLat: source.lat,
-                startLng: source.lng,
-                endLat: target.lat,
-                endLng: target.lng,
-                color: ["rgba(255,255,255,0)", midColor, "rgba(255,255,255,0)"],
-                time: randomInt(ARC_ANIMATE_TIME_MIN, ARC_ANIMATE_TIME_MAX),
-            });
-        });
-    });
-
-    return arcs;
-}
-
-function createMesh() {
-    const group = new THREE.Group();
-    group.add(
-        new THREE.Mesh(
-            new THREE.SphereGeometry(100.3, 64, 64),
-            new THREE.MeshBasicMaterial({
-                color: new THREE.Color("#1a4080"),
-                transparent: true,
-                opacity: 0.15,
-                depthWrite: false,
-            })
-        )
-    );
-    group.add(
-        new THREE.Mesh(
-            new THREE.SphereGeometry(101.6, 48, 48),
-            new THREE.MeshBasicMaterial({
-                color: new THREE.Color("#0d2350"),
-                transparent: true,
-                opacity: 0,
-                side: THREE.BackSide,
-                depthWrite: false,
-            })
-        )
-    );
-    return group;
-}
-
-function getCellSize(altitude: number) {
-    if (altitude > 2.8) return 18;
-    if (altitude > 2.2) return 15;
-    if (altitude > 1.7) return 10;
-    if (altitude > 1.3) return 10;
-    return 3;
 }
