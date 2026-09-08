@@ -10,7 +10,7 @@ export function Page({
     return (
         <div
             className={cn(
-                "@container section gap-8 rounded-lg py-8 [overflow-anchor:none]",
+                "@container flex w-full min-w-0 flex-col gap-6 [overflow-anchor:none]",
                 className
             )}
         >
