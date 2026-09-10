@@ -1,203 +1,347 @@
 "use client";
 
+import { CopyButton } from "@/components/CopyButton";
 import { Page } from "@/components/Page";
 import { PageHeader } from "@/components/PageHeader";
-import { SiteLink } from "@/components/SiteLink";
-import { Stat } from "@/components/Stat";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ValidatorAvatar } from "@/components/ValidatorAvatar";
+import {
+    EmptyState,
+    Metric,
+    Panel,
+    PanelHeader,
+    compact,
+    nano,
+} from "@/features/dashboard/DashboardPrimitives";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
-import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
-import { formatIota, formatNanoToIota, shortString } from "@/lib/format";
-import { useParams, useRouter } from "next/navigation";
+import {
+    ArrowLeft,
+    ArrowUpRight,
+    Coins,
+    Globe2,
+    MapPin,
+    Percent,
+    ShieldCheck,
+    TrendingUp,
+} from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useContext, useEffect } from "react";
+
+function projectUrl(value: string) {
+    try {
+        const url = new URL(value);
+        return ["https:", "http:"].includes(url.protocol) ? url : null;
+    } catch {
+        return null;
+    }
+}
 
 export default function ValidatorDetailPage() {
     const { id } = useParams<{ id: string }>();
-    const { isLoading, validators, selectedValidator, selectValidator } =
+    const { validators, isLoading, error, selectValidator, refresh } =
         useContext(ValidatorsContext);
-    const router = useRouter();
-
-    // Select from URL param only on initial load when nothing is selected yet
+    const validator = validators.find((v) => v.iotaAddress === id);
     useEffect(() => {
-        if (selectedValidator || !validators.length) return;
-        selectValidator?.(id);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [validators.length]);
-
-    // Sync URL when selected validator changes while on this page
-    useEffect(() => {
-        if (!selectedValidator) return;
-        if (selectedValidator.iotaAddress !== id) {
-            router.replace(`/validators/${selectedValidator.iotaAddress}`);
-        }
-    }, [selectedValidator?.iotaAddress, router, id, selectedValidator]);
-
-    useOnNetworkChange(() => {
-        if (!isLoading && !selectedValidator) {
-            router.push("/validators");
-        }
-    });
-
-    if (!selectedValidator) {
+        if (validator) selectValidator?.(validator.iotaAddress);
+    }, [validator, selectValidator]);
+    if (!validator)
         return (
             <Page>
-                <div className="mx-auto pt-16 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        Click on globe marker
-                    </p>
-                    <span className="block py-4 text-sm text-muted-foreground">
-                        or
-                    </span>
-                    <SiteLink
-                        className="mb-3 gap-2 text-base text-foreground"
-                        href="/validators"
-                        arrowPosition="left"
-                        arrowClassName="h-5 w-5"
-                        label="Go back to validators list"
+                <Link className="text-link" href="/validators">
+                    <ArrowLeft size={14} />
+                    All validators
+                </Link>
+                <PageHeader title="Validator details" />
+                <Panel>
+                    <EmptyState
+                        error={!!error}
+                        title={
+                            isLoading
+                                ? "Loading validator"
+                                : error
+                                  ? "Validator data unavailable"
+                                  : "Validator not found"
+                        }
+                        description={
+                            isLoading
+                                ? "Fetching the current active validator set."
+                                : (error ??
+                                  "This address is not in the active validator set for the selected network. Choose another validator or switch networks.")
+                        }
+                        action={
+                            error ? (
+                                <button
+                                    className="subtle-button"
+                                    disabled={isLoading}
+                                    onClick={refresh}
+                                >
+                                    {isLoading ? "Retrying…" : "Retry"}
+                                </button>
+                            ) : undefined
+                        }
                     />
-                </div>
+                </Panel>
             </Page>
         );
-    }
-
-    const validator = selectedValidator;
-
-    const { payload, stats, iotaAddress, isCommitteeMember } = validator;
-
-    const apyFormatted =
-        stats.apyPercent != null ? `${stats.apyPercent.toFixed(2)}` : "—";
-    const commission =
-        payload.effectiveCommissionRate != null
-            ? `${(Number(payload.effectiveCommissionRate) / 100).toFixed(2)}`
-            : "—";
-    const votingPower =
-        payload.votingPower != null
-            ? `${(Number(payload.votingPower) / 100).toFixed(2)}`
-            : "—";
-
-    const totalStaked = formatNanoToIota(payload.stakingPoolIotaBalance);
-    const rewardsPool = formatNanoToIota(payload.rewardsPool);
-    const lastReward = formatIota(stats.lastEpochRewardIOTA);
-
-    const nextEpochStake = formatNanoToIota(payload.nextEpochStake);
-    const nextEpochCommission =
-        payload.nextEpochCommissionRate != null
-            ? `${(Number(payload.nextEpochCommissionRate) / 100).toFixed(2)}`
-            : "—";
-
+    const { payload, stats, iotaAddress, geo } = validator;
+    const commission = Number(payload.effectiveCommissionRate) / 100;
+    const nextCommission = Number(payload.nextEpochCommissionRate) / 100;
+    const nextStake = nano(payload.nextEpochStake);
+    const stakeDelta = nextStake == null ? null : nextStake - stats.stakeIOTA;
+    const totalStake = validators.reduce((s, v) => s + v.stats.stakeIOTA, 0);
+    const stakeShare =
+        totalStake > 0 ? (stats.stakeIOTA / totalStake) * 100 : 0;
+    const url = projectUrl(payload.projectUrl);
+    const identity = [
+        { label: "Validator address", value: iotaAddress },
+        { label: "Staking pool ID", value: payload.stakingPoolId },
+        { label: "Protocol public key", value: payload.protocolPubkeyBytes },
+    ];
     return (
-        <Page className="gap-4!">
-            <SiteLink
-                href="/validators"
-                label="All validators"
-                arrowPosition="left"
-            />
-            <div>
-                <PageHeader
-                    title={payload.name}
-                    description={payload.description}
-                    action={
-                        isCommitteeMember && <Badge>Committee Member</Badge>
-                    }
-                    actionNearby
+        <Page>
+            <Link className="text-link" href="/validators">
+                <ArrowLeft size={14} />
+                All validators
+            </Link>
+            {error && (
+                <div className="error-banner" role="status">
+                    <span>{error} Displaying the last available snapshot.</span>
+                    <button
+                        className="subtle-button ml-auto"
+                        disabled={isLoading}
+                        onClick={refresh}
+                    >
+                        {isLoading ? "Retrying…" : "Retry"}
+                    </button>
+                </div>
+            )}
+            <div className="detail-hero">
+                <ValidatorAvatar
+                    name={payload.name}
+                    imageUrl={payload.imageUrl}
                 />
-                {payload.projectUrl && (
-                    <SiteLink
-                        className="mt-2 text-base"
-                        href={validator.payload.projectUrl}
-                        label={validator.payload.projectUrl?.replace(
-                            /^https?:\/\//,
-                            ""
+                <div>
+                    <div className="detail-hero-meta">
+                        <h1>{payload.name}</h1>
+                        <span className="detail-status">
+                            <ShieldCheck size={11} />
+                            {validator.isCommitteeMember
+                                ? "Committee member"
+                                : "Active validator"}
+                        </span>
+                        {validator.isAtRisk && (
+                            <span className="risk-label">
+                                At risk
+                                {validator.atRiskGracePeriod
+                                    ? ` · ${validator.atRiskGracePeriod} epochs`
+                                    : ""}
+                            </span>
                         )}
-                        outerLink
-                    />
-                )}
+                    </div>
+                    <p>
+                        {payload.description ||
+                            "An independent validator securing the IOTA network."}
+                    </p>
+                    {url && (
+                        <a
+                            className="text-link"
+                            href={url.href}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {url.hostname}
+                            <ArrowUpRight size={13} />
+                        </a>
+                    )}
+                    <div className="detail-location">
+                        <MapPin size={12} />
+                        {geo
+                            ? `${geo.city}, ${geo.country} · IP-based location`
+                            : "Geolocation unavailable"}
+                    </div>
+                </div>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Current Epoch</CardTitle>
-                </CardHeader>
-                <CardContent className="grid w-full grid-cols-2 items-center justify-center gap-4 @[25rem]:grid-cols-3 @[48rem]:grid-cols-5">
-                    <Stat value={apyFormatted} label="APY" sub="%" />
-                    <Stat value={commission} label="Commission" sub="%" />
-                    <Stat value={votingPower} label="Voting Power" sub="%" />
-                    <Stat
-                        value={totalStaked.value}
-                        sub={totalStaked.label}
-                        label="Total Staked"
-                    />
-                    <Stat
-                        value={rewardsPool.value}
-                        sub={rewardsPool.label}
-                        label="Rewards Pool"
-                    />
-                </CardContent>
-            </Card>
-            <div className="flex w-full gap-4 @max-[25rem]:flex-col">
-                <Card className="w-full">
-                    <CardHeader>
-                        <CardTitle>Previous Epoch</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Stat
-                            value={lastReward?.value ?? "—"}
-                            sub={lastReward?.label ?? rewardsPool.label}
-                            label="Last Epoch Rewards"
-                        />
-                    </CardContent>
-                </Card>
-
-                <Card className="w-full">
-                    <CardHeader>
-                        <CardTitle>Next Epoch</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 items-end gap-4 @[40rem]:grid-cols-2">
-                        <Stat
-                            value={nextEpochStake.value}
-                            sub={nextEpochStake.label}
-                            label="Next Epoch Stake"
-                        />
-                        <Stat
-                            size={"sm"}
-                            className="text-nowrap!"
-                            value={nextEpochCommission}
-                            sub="%"
-                            label="Next Epoch Commission"
-                        />
-                    </CardContent>
-                </Card>
+            <div className="page-summary">
+                <Metric
+                    label="Total staked"
+                    value={compact(stats.stakeIOTA)}
+                    unit="IOTA"
+                    detail={`${stakeShare.toFixed(2)}% of active validator stake`}
+                    icon={Coins}
+                />
+                <Metric
+                    label="Staking APY"
+                    value={stats.apyPercent?.toFixed(2)}
+                    unit="%"
+                    detail="Reported validator APY"
+                    icon={TrendingUp}
+                    tone="teal"
+                />
+                <Metric
+                    label="Commission"
+                    value={
+                        Number.isFinite(commission)
+                            ? commission.toFixed(2)
+                            : null
+                    }
+                    unit="%"
+                    detail="Effective commission rate"
+                    icon={Percent}
+                    tone="purple"
+                />
+                <Metric
+                    label="Voting power"
+                    value={stats.stakePercent.toFixed(2)}
+                    unit="%"
+                    detail="Share of network voting power"
+                    icon={ShieldCheck}
+                    tone="amber"
+                />
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Identity</CardTitle>
-                </CardHeader>
-                <CardContent className="grid w-full grid-cols-1 gap-4 @[40rem]:grid-cols-3">
-                    <Stat
-                        value={shortString(iotaAddress, 4, 4)}
-                        copyValue={iotaAddress}
-                        size={"sm"}
-                        label="iotaAddress"
-                        withCopy
+            <div className="detail-analysis-grid">
+                <Panel>
+                    <PanelHeader
+                        title="Stake outlook"
+                        description="Current balance and the next epoch"
                     />
-                    <Stat
-                        value={shortString(payload.stakingPoolId, 4, 4)}
-                        copyValue={payload.stakingPoolId}
-                        size={"sm"}
-                        label="Pool ID"
-                        withCopy
+                    <div className="stake-outlook">
+                        <div>
+                            <span>Current epoch</span>
+                            <strong>
+                                {compact(stats.stakeIOTA)}
+                                <small>IOTA</small>
+                            </strong>
+                            <div className="outlook-bar">
+                                <i
+                                    style={{
+                                        width: `${(stats.stakeIOTA / Math.max(stats.stakeIOTA, nextStake ?? 0, 1)) * 100}%`,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <span>Next epoch</span>
+                            <strong>
+                                {compact(nextStake)}
+                                <small>IOTA</small>
+                            </strong>
+                            <div className="outlook-bar next">
+                                <i
+                                    style={{
+                                        width: `${((nextStake ?? 0) / Math.max(stats.stakeIOTA, nextStake ?? 0, 1)) * 100}%`,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <p>
+                            Expected change{" "}
+                            <b
+                                className={
+                                    stakeDelta != null && stakeDelta >= 0
+                                        ? "positive"
+                                        : ""
+                                }
+                            >
+                                {stakeDelta == null
+                                    ? "—"
+                                    : `${stakeDelta >= 0 ? "+" : ""}${compact(stakeDelta)} IOTA`}
+                            </b>
+                        </p>
+                    </div>
+                </Panel>
+                <Panel>
+                    <PanelHeader
+                        title="Network participation"
+                        description="Stake share within the active validator set"
                     />
-                    <Stat
-                        value={shortString(payload.protocolPubkeyBytes, 4, 4)}
-                        copyValue={payload.protocolPubkeyBytes}
-                        size={"sm"}
-                        label="Protocol Public Key"
-                        withCopy
-                    />
-                </CardContent>
-            </Card>
+                    <div className="voting-visual">
+                        <div
+                            className="voting-gauge"
+                            role="img"
+                            aria-label={`${stakeShare.toFixed(2)} percent of total active stake`}
+                            style={{
+                                background: `conic-gradient(#a99bff 0% ${stakeShare}%, #283349 ${stakeShare}% 100%)`,
+                            }}
+                        >
+                            <div>
+                                <strong>
+                                    {stakeShare.toFixed(2)}
+                                    <small>%</small>
+                                </strong>
+                                <span>of active stake</span>
+                            </div>
+                        </div>
+                        <div className="voting-description">
+                            <Globe2 size={20} strokeWidth={1.3} />
+                            <strong>One part of a global network.</strong>
+                            <p>
+                                {payload.name} participates alongside{" "}
+                                {Math.max(0, validators.length - 1)} other
+                                active validators.
+                            </p>
+                        </div>
+                    </div>
+                </Panel>
+            </div>
+            <Panel>
+                <PanelHeader
+                    title="Staking economics"
+                    description="Rewards and parameters reported by the network"
+                />
+                <div className="economics-grid">
+                    <div>
+                        <span>Last epoch reward</span>
+                        <strong>
+                            {compact(stats.lastEpochRewardIOTA)}
+                            <small>IOTA</small>
+                        </strong>
+                    </div>
+                    <div>
+                        <span>Rewards pool</span>
+                        <strong>
+                            {compact(nano(payload.rewardsPool))}
+                            <small>IOTA</small>
+                        </strong>
+                    </div>
+                    <div>
+                        <span>Next epoch commission</span>
+                        <strong>
+                            {Number.isFinite(nextCommission)
+                                ? nextCommission.toFixed(2)
+                                : "—"}
+                            <small>%</small>
+                        </strong>
+                    </div>
+                    <div>
+                        <span>Committee status</span>
+                        <strong className="economics-status">
+                            {validator.isCommitteeMember
+                                ? "Committee member"
+                                : "Non-committee"}
+                        </strong>
+                    </div>
+                </div>
+            </Panel>
+            <Panel>
+                <PanelHeader
+                    title="On-chain identity"
+                    description="Public identifiers for this validator"
+                />
+                <dl className="identity-list">
+                    {identity.map((item) => (
+                        <div key={item.label}>
+                            <dt>{item.label}</dt>
+                            <dd>
+                                <code>{item.value}</code>
+                                <CopyButton
+                                    value={item.value}
+                                    label={`Copy ${item.label.toLowerCase()}`}
+                                />
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+            </Panel>
         </Page>
     );
 }

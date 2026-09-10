@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { TableCell } from "./ui/table";
+import { TableHead } from "./ui/table";
 
 export type TableHeaderCellProps = {
     label: string;
@@ -7,6 +7,7 @@ export type TableHeaderCellProps = {
     icon?: React.ComponentType<{ className?: string }>;
     iconActive?: boolean;
     onClick?: () => void;
+    sortDirection?: "asc" | "desc";
     className?: string;
 };
 
@@ -16,38 +17,52 @@ export function TableHeaderCell({
     icon: Icon,
     iconActive,
     onClick,
+    sortDirection,
     className,
 }: TableHeaderCellProps) {
+    const content = (
+        <>
+            {label}
+            {Icon && (
+                <Icon
+                    className={cn(
+                        "h-3 w-3 shrink-0",
+                        iconActive ? "text-primary" : "opacity-40"
+                    )}
+                />
+            )}
+        </>
+    );
     return (
-        <TableCell
-            onClick={onClick}
+        <TableHead
+            scope="col"
+            aria-sort={
+                iconActive
+                    ? sortDirection === "asc"
+                        ? "ascending"
+                        : "descending"
+                    : undefined
+            }
             className={cn(
-                "text-wrap! text-xs text-muted-foreground",
                 align === "center" && "text-center",
                 align === "right" && "text-right",
-                onClick && "cursor-pointer select-none",
                 className
             )}
         >
-            {Icon ? (
-                <span
+            {onClick ? (
+                <button
                     className={cn(
-                        "flex items-center gap-1",
-                        align === "center" && "justify-center",
+                        "inline-flex items-center gap-2 py-2",
                         align === "right" && "justify-end"
                     )}
+                    onClick={onClick}
+                    aria-label={`Sort by ${label}`}
                 >
-                    {label}
-                    <Icon
-                        className={cn(
-                            "h-3 w-3 shrink-0",
-                            iconActive ? "text-foreground" : "opacity-40"
-                        )}
-                    />
-                </span>
+                    {content}
+                </button>
             ) : (
-                label
+                content
             )}
-        </TableCell>
+        </TableHead>
     );
 }

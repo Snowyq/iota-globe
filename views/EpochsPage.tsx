@@ -1,22 +1,9 @@
 "use client";
 
-import { EpochRow, EpochsApiResponse, PAGE_SIZE } from "@/app/api/epochs/route";
-import { FormattedCell } from "@/components/FormattedCell";
+import type { EpochRow, EpochsApiResponse } from "@/app/api/epochs/route";
 import { Page } from "@/components/Page";
 import { PageHeader } from "@/components/PageHeader";
-import {
-    TableHeaderCellProps as ColDef,
-    TableHeaderCell,
-} from "@/components/TableHeaderCell";
-import { Input } from "@/components/ui/input";
-import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-    PaginationNext,
-    PaginationPrevious,
-} from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableHeaderCell } from "@/components/TableHeaderCell";
 import {
     Table,
     TableBody,
@@ -25,228 +12,322 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import {
+    EmptyState,
+    Metric,
+    compact,
+    nano,
+} from "@/features/dashboard/DashboardPrimitives";
+import { EpochHistoryChart } from "@/features/dashboard/EpochHistoryChart";
+import { EpochProgress } from "@/features/dashboard/EpochProgress";
+import { NetworkContext } from "@/features/network/NetworkContext";
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
-import { useNowTime } from "@/hooks/useNowTime";
-import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
-import { formatDuration, formatNanoToIota } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+import {
+    ArrowLeft,
+    ArrowLeftRight,
+    ArrowRight,
+    Coins,
+    Layers3,
+    Timer,
+    WifiOff,
+} from "lucide-react";
 import { useContext, useEffect, useState } from "react";
-
-const COLS: ColDef[] = [
-    { label: "Epoch" },
-    { label: "Transaction Blocks", align: "right" },
-    { label: "Stake Rewards", align: "right" },
-    { label: "Checkpoint Set", align: "right" },
-    { label: "Storage Net Inflow", align: "right" },
-    { label: "Epoch End", align: "right" },
-];
 
 export default function EpochsPage() {
     const { network } = useContext(OptionsContext);
-    const { networkStats } = useContext(ValidatorsContext);
-
-    const currentEpoch =
-        networkStats?.epoch != null ? Number(networkStats.epoch) : null;
-    const totalPages =
-        currentEpoch != null ? Math.ceil((currentEpoch + 1) / PAGE_SIZE) : 1;
-
+    const { networkStats, isLoading: validatorsLoading } =
+        useContext(ValidatorsContext);
+    const {
+        lastEpochTransactions,
+        lastEpochRewards,
+        networkMetrics,
+        isLoading: networkLoading,
+    } = useContext(NetworkContext);
     const [epochs, setEpochs] = useState<EpochRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [pageIndex, setPageIndex] = useState(0);
-    const [hasNextPage, setHasNextPage] = useState(false);
-
-    const now = useNowTime();
-
-    useOnNetworkChange(() => {
-        setPageIndex(0);
-        setHasNextPage(false);
+    const [error, setError] = useState<string | null>(null);
+    const [pagination, setPagination] = useState({
+        network,
+        pageIndex: 0,
+        cursors: [null] as (string | null)[],
     });
-
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
+    const [hasNext, setHasNext] = useState(false);
+    const [retry, setRetry] = useState(0);
+    // A cursor belongs to its dataset. Never request a new network with an old cursor.
+    const pageIndex = pagination.network === network ? pagination.pageIndex : 0;
+    const cursors =
+        pagination.network === network ? pagination.cursors : [null];
+    const cursor = cursors[pageIndex] ?? null;
     useEffect(() => {
-        const cursor =
-            pageIndex === 0 || currentEpoch == null
-                ? null
-                : String(currentEpoch - pageIndex * PAGE_SIZE);
-
-        const url = `/api/epochs?dataset=${network}${cursor ? `&cursor=${cursor}` : ""}`;
-
-        // eslint-disable-next-line
+        const controller = new AbortController();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsLoading(true);
-        fetch(url)
-            .then((r) => r.json() as Promise<EpochsApiResponse>)
-            .then(({ epochs, hasNextPage }) => {
-                setEpochs(epochs);
-                setHasNextPage(hasNextPage);
+        setError(null);
+        setEpochs([]);
+        setHasNext(false);
+        fetch(
+            `/api/epochs?dataset=${network}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+            {
+                signal: AbortSignal.any([
+                    controller.signal,
+                    AbortSignal.timeout(20_000),
+                ]),
+            }
+        )
+            .then(async (response) => {
+                if (!response.ok) throw new Error("Failed to load epochs");
+                return response.json() as Promise<EpochsApiResponse>;
             })
-            .catch(console.error)
-            .finally(() => setIsLoading(false));
-    }, [network, pageIndex, currentEpoch]);
-
-    const goToPage = (p: number) => {
-        const clamped = Math.max(0, Math.min(p, totalPages - 1));
-        setPageIndex(clamped);
+            .then((data) => {
+                if (controller.signal.aborted) return;
+                if (!Array.isArray(data.epochs))
+                    throw new Error("Invalid epoch response");
+                setEpochs(data.epochs);
+                setHasNext(data.hasNextPage);
+                setNextCursor(data.nextCursor);
+            })
+            .catch(() => {
+                if (!controller.signal.aborted)
+                    setError("Epoch history could not be loaded. Try again.");
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setIsLoading(false);
+            });
+        return () => controller.abort();
+    }, [network, cursor, retry]);
+    const next = () => {
+        if (!nextCursor || !hasNext) return;
+        setPagination({
+            network,
+            cursors: [...cursors.slice(0, pageIndex + 1), nextCursor],
+            pageIndex: pageIndex + 1,
+        });
     };
-
     return (
-        <Page className="">
+        <Page>
             <PageHeader
-                title="Epochs"
-                description="Browse IOTA epoch history"
+                title="Epoch history"
+                description="Explore the rhythm of the network, one epoch at a time."
             />
-
-            <Table className="w-full">
-                <TableCaption>IOTA epoch history.</TableCaption>
-                <TableHeader className="">
-                    <TableRow className="hover:bg-transparent!">
-                        {COLS.map((col) => (
-                            <TableHeaderCell key={col.label} {...col} />
-                        ))}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {isLoading
-                        ? Array.from({ length: 10 }).map((_, i) => (
-                              <RowSkeleton key={i} />
-                          ))
-                        : epochs.map((epoch) => (
-                              <EpochDataRow
-                                  key={epoch.epoch}
-                                  epoch={epoch}
-                                  now={now}
-                              />
-                          ))}
-                </TableBody>
-            </Table>
-
-            {totalPages > 1 && (
-                <Pagination>
-                    <PaginationContent>
-                        <PaginationItem>
-                            <PaginationPrevious
-                                text="Prev"
-                                onClick={() => goToPage(pageIndex - 1)}
-                                aria-disabled={pageIndex === 0}
-                            />
-                        </PaginationItem>
-                        <PaginationItem>
-                            <PageInput
-                                page={pageIndex + 1}
-                                totalPages={totalPages}
-                                onChangePage={(p) => goToPage(p - 1)}
-                            />
-                        </PaginationItem>
-                        <PaginationItem>
-                            <PaginationNext
-                                text="Next"
-                                onClick={() => goToPage(pageIndex + 1)}
-                                aria-disabled={!hasNextPage}
-                            />
-                        </PaginationItem>
-                    </PaginationContent>
-                </Pagination>
+            <div className="page-summary">
+                <Metric
+                    label="Current epoch"
+                    isLoading={validatorsLoading && !networkStats}
+                    value={networkStats ? `#${networkStats.epoch}` : null}
+                    detail="Current network cycle"
+                    icon={Layers3}
+                />
+                <Metric
+                    label="Last epoch transactions"
+                    isLoading={networkLoading && !networkMetrics}
+                    value={compact(lastEpochTransactions)}
+                    detail="Most recently completed epoch"
+                    icon={ArrowLeftRight}
+                    tone="purple"
+                />
+                <Metric
+                    label="Last epoch rewards"
+                    isLoading={networkLoading && !networkMetrics}
+                    value={compact(
+                        nano(lastEpochRewards?.totalStakeRewardsDistributed)
+                    )}
+                    unit="IOTA"
+                    detail="Distributed staking rewards"
+                    icon={Coins}
+                    tone="teal"
+                />
+                <Metric
+                    label="Epoch duration"
+                    isLoading={validatorsLoading && !networkStats}
+                    value={
+                        networkStats
+                            ? formatDuration(
+                                  Number(networkStats.epochDurationMs)
+                              )
+                            : null
+                    }
+                    detail={
+                        networkMetrics
+                            ? `Checkpoint #${Number(networkMetrics.currentCheckpoint).toLocaleString("en-US")}`
+                            : "Awaiting system state"
+                    }
+                    icon={Timer}
+                    tone="amber"
+                />
+            </div>
+            <div className="epoch-page-progress">
+                <EpochProgress />
+            </div>
+            {error && (
+                <div className="error-banner" role="alert">
+                    <WifiOff size={16} />
+                    <span>{error}</span>
+                    <button
+                        className="subtle-button ml-auto"
+                        onClick={() => setRetry((r) => r + 1)}
+                    >
+                        Retry
+                    </button>
+                </div>
             )}
+            <EpochHistoryChart
+                epochs={epochs}
+                isLoading={isLoading}
+                error={!!error}
+            />
+            <section className="table-panel" aria-label="Epoch history">
+                <div className="table-toolbar">
+                    <div>
+                        <h2 className="text-[13px] font-medium">
+                            Epoch ledger
+                        </h2>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                            Transactions, rewards and storage economics
+                        </p>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                        {isLoading ? "Loading…" : `${epochs.length} epochs`}
+                    </span>
+                </div>
+                {!epochs.length ? (
+                    <EmptyState
+                        error={!!error}
+                        title={
+                            isLoading
+                                ? "Loading epoch records"
+                                : error
+                                  ? "Epoch records unavailable"
+                                  : "No epochs found"
+                        }
+                    />
+                ) : (
+                    <Table>
+                        <TableCaption>
+                            Amounts in IOTA. The current epoch is still
+                            accumulating transactions and rewards.
+                        </TableCaption>
+                        <TableHeader>
+                            <TableRow>
+                                {[
+                                    { label: "Epoch" },
+                                    {
+                                        label: "Transactions",
+                                        align: "right" as const,
+                                    },
+                                    {
+                                        label: "Staking rewards (IOTA)",
+                                        align: "right" as const,
+                                    },
+                                    {
+                                        label: "Last checkpoint",
+                                        align: "right" as const,
+                                    },
+                                    {
+                                        label: "Storage net inflow (IOTA)",
+                                        align: "right" as const,
+                                    },
+                                    { label: "Ended", align: "right" as const },
+                                ].map((col) => (
+                                    <TableHeaderCell key={col.label} {...col} />
+                                ))}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {epochs.map((epoch) => (
+                                <TableRow key={epoch.epoch}>
+                                    <TableCell>
+                                        <span className="font-medium text-[#c1b7f3]">
+                                            #{epoch.epoch}
+                                        </span>
+                                        {epoch.epochEndTimestamp == null && (
+                                            <span className="epoch-ongoing">
+                                                Ongoing
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-right tabular-nums">
+                                        {Number(
+                                            epoch.totalTransactions
+                                        ).toLocaleString("en-US")}
+                                    </TableCell>
+                                    <TableCell className="text-right tabular-nums">
+                                        {epoch.stakeRewardsNano == null
+                                            ? "—"
+                                            : (
+                                                  Number(
+                                                      epoch.stakeRewardsNano
+                                                  ) / 1e9
+                                              ).toLocaleString("en-US", {
+                                                  maximumFractionDigits: 2,
+                                              })}
+                                    </TableCell>
+                                    <TableCell className="text-right tabular-nums">
+                                        {epoch.lastCheckpointId == null
+                                            ? "—"
+                                            : Number(
+                                                  epoch.lastCheckpointId
+                                              ).toLocaleString("en-US")}
+                                    </TableCell>
+                                    <TableCell className="text-right tabular-nums">
+                                        {epoch.storageNetInflowNano == null
+                                            ? "—"
+                                            : (
+                                                  Number(
+                                                      epoch.storageNetInflowNano
+                                                  ) / 1e9
+                                              ).toLocaleString("en-US", {
+                                                  maximumFractionDigits: 2,
+                                              })}
+                                    </TableCell>
+                                    <TableCell className="text-right text-muted-foreground">
+                                        {epoch.epochEndTimestamp
+                                            ? new Date(
+                                                  Number(
+                                                      epoch.epochEndTimestamp
+                                                  )
+                                              ).toLocaleString("en-GB", {
+                                                  day: "2-digit",
+                                                  month: "short",
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                  timeZone: "UTC",
+                                              }) + " UTC"
+                                            : "In progress"}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </section>
+            <div className="epoch-pagination">
+                <button
+                    className="subtle-button"
+                    disabled={pageIndex === 0 || isLoading}
+                    onClick={() =>
+                        setPagination({
+                            network,
+                            cursors,
+                            pageIndex: Math.max(0, pageIndex - 1),
+                        })
+                    }
+                >
+                    <ArrowLeft size={13} />
+                    Newer epochs
+                </button>
+                <span>Page {pageIndex + 1}</span>
+                <button
+                    className="subtle-button"
+                    disabled={!hasNext || isLoading || !!error}
+                    onClick={next}
+                >
+                    Older epochs
+                    <ArrowRight size={13} />
+                </button>
+            </div>
         </Page>
-    );
-}
-
-function PageInput({
-    page,
-    totalPages,
-    onChangePage,
-}: {
-    page: number;
-    totalPages: number;
-    onChangePage: (p: number) => void;
-}) {
-    const apply = (raw: string) => {
-        const p = parseInt(raw);
-        if (isNaN(p)) return;
-        onChangePage(Math.min(Math.max(p, 1), totalPages));
-    };
-
-    return (
-        <span className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Input
-                key={page}
-                defaultValue={page}
-                className="h-7 w-12 px-1 text-center"
-                onBlur={(e) => apply(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter")
-                        apply((e.target as HTMLInputElement).value);
-                }}
-            />
-            <span>/ {totalPages}</span>
-        </span>
-    );
-}
-
-function EpochDataRow({ epoch, now }: { epoch: EpochRow; now: number }) {
-    const isOngoing = epoch.epochEndTimestamp == null;
-    const endAgo = epoch.epochEndTimestamp
-        ? formatDuration(now - Number(epoch.epochEndTimestamp))
-        : null;
-
-    const totalTransactions = isOngoing
-        ? null
-        : Number(epoch.totalTransactions).toLocaleString();
-
-    const stakeRewards = formatNanoToIota(epoch.stakeRewardsNano, true, 0);
-
-    const lastCheckpointId = epoch.lastCheckpointId
-        ? Number(epoch.lastCheckpointId).toLocaleString()
-        : null;
-
-    const storageNetInflow = formatNanoToIota(epoch.storageNetInflowNano);
-    return (
-        <TableRow className="text-xs">
-            <TableCell className="font-medium">{epoch.epoch}</TableCell>
-            <FormattedCell
-                align="right"
-                value={totalTransactions}
-                label="txns"
-            />
-            <FormattedCell
-                align="right"
-                value={stakeRewards?.value}
-                label={stakeRewards?.label}
-            />
-            <FormattedCell align="right" value={lastCheckpointId} />
-            <FormattedCell
-                align="right"
-                value={storageNetInflow.value}
-                label={storageNetInflow.label}
-            />
-            <FormattedCell
-                align="right"
-                value={endAgo ?? "Ongoing"}
-                label={endAgo ? "ago" : undefined}
-            />
-        </TableRow>
-    );
-}
-
-function RowSkeleton() {
-    return (
-        <TableRow>
-            <TableCell>
-                <Skeleton className="h-3 w-10" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="ml-auto h-3 w-20" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="ml-auto h-3 w-20" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="ml-auto h-3 w-24" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="ml-auto h-3 w-20" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="ml-auto h-3 w-24" />
-            </TableCell>
-        </TableRow>
     );
 }

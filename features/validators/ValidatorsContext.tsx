@@ -1,9 +1,10 @@
 "use client";
 
 import {
-    ValidatorResponseItem,
-    ValidatorsApiResponseData,
+    type ValidatorResponseItem,
+    type ValidatorsApiResponseData,
 } from "@/app/api/validators/route";
+import { computeValidatorStats, type ValidatorStats } from "./stats";
 import { fetchValidators } from "@/lib/fetch";
 import {
     createContext,
@@ -11,20 +12,18 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import { OptionsContext } from "../options/OptionsContext";
 
 export interface Validator extends ValidatorResponseItem {
-    stats: {
-        stakeIOTA: number;
-        stakePercent: number;
-        apyPercent: number | null;
-        lastEpochRewardIOTA: number | null;
-    };
+    stats: ValidatorStats;
 }
 
 interface ValidatorsContextValue {
+    refresh: () => void;
+    error: string | null;
     validators: Validator[];
     isLoading: boolean;
     networkStats: ValidatorsApiResponseData["systemState"] | null;
@@ -35,6 +34,8 @@ interface ValidatorsContextValue {
 }
 
 export const ValidatorsContext = createContext<ValidatorsContextValue>({
+    refresh: () => {},
+    error: null,
     validators: [],
     isLoading: true,
     networkStats: null,
@@ -52,8 +53,12 @@ export default function ValidatorsContextProvider({
     children: React.ReactNode;
 }) {
     const { network } = useContext(OptionsContext);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
+    const previousNetworkRef = useRef<string | null>(null);
     const [validators, setValidators] = useState<Validator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [networkStats, setNetworkStats] = useState<
         ValidatorsApiResponseData["systemState"] | null
     >(null);
@@ -77,26 +82,49 @@ export default function ValidatorsContextProvider({
     }, []);
 
     useEffect(() => {
-        // eslint-disable-next-line
-        setValidators([]);
+        let cancelled = false;
+        let pending = false;
+        const controller = new AbortController();
+        const networkChanged = previousNetworkRef.current !== network;
+        previousNetworkRef.current = network;
+        if (networkChanged) {
+            setValidators([]);
+            setNetworkStats(null);
+            setDataTtl(null);
+            setSelectedValidator(null);
+        }
+        // A new network or an explicit retry begins a visible request lifecycle.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsLoading(true);
-        setNetworkStats(null);
-        setDataTtl(null);
-
+        if (networkChanged) setError(null);
         let firstLoad = true;
 
         const load = async () => {
+            if (pending) return;
+            pending = true;
             try {
-                const { data: info, ttl } = await fetchValidators(network);
+                const { data: info, ttl } = await fetchValidators(
+                    network,
+                    controller.signal
+                );
+                if (cancelled) return;
                 setValidators(
-                    info.validators.map((v) => computeStats(v, info))
+                    info.validators.map((v) => ({
+                        ...v,
+                        stats: computeValidatorStats(v, info.epochInfoEvents),
+                    }))
                 );
                 setNetworkStats(info.systemState);
                 setDataTtl(ttl);
-            } catch (error) {
-                console.error("Failed to fetch validators:", error);
+                setError(null);
+            } catch {
+                if (!cancelled)
+                    setError(
+                        "Validator data is unavailable. Retrying automatically."
+                    );
             } finally {
-                if (firstLoad) {
+                pending = false;
+                if (firstLoad && !cancelled) {
                     setIsLoading(false);
                     firstLoad = false;
                 }
@@ -105,11 +133,17 @@ export default function ValidatorsContextProvider({
 
         load();
         const interval = setInterval(load, PULL_INTERVAL_MS);
-        return () => clearInterval(interval);
-    }, [network]);
+        return () => {
+            cancelled = true;
+            controller.abort();
+            clearInterval(interval);
+        };
+    }, [network, refreshKey]);
 
     const contextValue = useMemo(
         () => ({
+            refresh,
+            error,
             validators,
             isLoading,
             networkStats,
@@ -119,6 +153,8 @@ export default function ValidatorsContextProvider({
             selectedValidator,
         }),
         [
+            refresh,
+            error,
             validators,
             isLoading,
             networkStats,
@@ -134,31 +170,4 @@ export default function ValidatorsContextProvider({
             {children}
         </ValidatorsContext.Provider>
     );
-}
-
-type EpochEventParsed = {
-    epoch: string;
-    validator_address: string;
-    pool_staking_reward: string;
-};
-
-function computeStats(
-    v: ValidatorResponseItem,
-    info: ValidatorsApiResponseData
-): Validator {
-    const reward = info.epochInfoEvents
-        .map((e) => e.parsedJson as EpochEventParsed)
-        .find((p) => p.validator_address === v.iotaAddress);
-
-    return {
-        ...v,
-        stats: {
-            stakeIOTA: Number(v.payload.stakingPoolIotaBalance) / 1_000_000_000,
-            stakePercent: Number(v.payload.votingPower) / 100,
-            apyPercent: v.apy != null ? v.apy * 100 : null,
-            lastEpochRewardIOTA: reward
-                ? Number(reward.pool_staking_reward) / 1_000_000_000
-                : null,
-        },
-    };
 }

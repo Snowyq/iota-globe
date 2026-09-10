@@ -1,6 +1,7 @@
 "use client";
 
 import { FormattedCell } from "@/components/FormattedCell";
+import { ValidatorAvatar } from "@/components/ValidatorAvatar";
 import { TableHeaderCell } from "@/components/TableHeaderCell";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -18,9 +19,15 @@ import {
     formatIota,
     shortString,
 } from "@/lib/format";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import {
+    ArrowDown,
+    ArrowUp,
+    ArrowUpDown,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { memo, useCallback, useContext, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useState } from "react";
 import { Validator, ValidatorsContext } from "./ValidatorsContext";
 
 type SortKey =
@@ -55,13 +62,25 @@ export default function ValidatorsTable({
 }) {
     const { validators, isLoading, selectValidator } =
         useContext(ValidatorsContext);
+    const initialLoading = isLoading && !validators.length;
     const { moveGlobeTo } = useContext(GlobeContext);
     const router = useRouter();
     const [sortKey, setSortKey] = useState<SortKey>("stake");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+    const [page, setPage] = useState(0);
+    const pageSize = 15;
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPage(0);
+    }, [query, filter, sortKey, sortDir]);
 
     const filtered = validators.filter((v) => {
-        if (!v.payload.name.toLowerCase().includes(query.toLowerCase())) {
+        if (
+            ![v.payload.name, v.iotaAddress, v.geo?.country ?? ""].some(
+                (value) =>
+                    value.toLowerCase().includes(query.toLowerCase().trim())
+            )
+        ) {
             return false;
         }
         if (filter === "committee") return v.isCommitteeMember;
@@ -78,6 +97,13 @@ export default function ValidatorsTable({
                 : (av as number) - (bv as number);
         return sortDir === "asc" ? cmp : -cmp;
     });
+
+    const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+    const currentPage = Math.min(page, pageCount - 1);
+    const visible = sorted.slice(
+        currentPage * pageSize,
+        (currentPage + 1) * pageSize
+    );
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -101,56 +127,96 @@ export default function ValidatorsTable({
     );
 
     return (
-        <Table className="relative h-fit w-full">
-            <TableCaption>IOTA validators.</TableCaption>
-            <TableHeader>
-                <TableRow className="hover:bg-transparent!">
-                    {COLUMNS.map(({ key, label, align }) => {
-                        const active = sortKey === key;
-                        return (
-                            <TableHeaderCell
-                                key={key}
-                                label={label}
-                                align={align}
-                                icon={
-                                    active
-                                        ? sortDir === "asc"
-                                            ? ArrowUp
-                                            : ArrowDown
-                                        : ArrowUpDown
-                                }
-                                iconActive={active}
-                                onClick={() => handleSort(key)}
-                            />
-                        );
-                    })}
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {isLoading ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                        <ValidatorRowSkeleton key={i} />
-                    ))
-                ) : sorted.length === 0 ? (
-                    <TableRow>
-                        <TableCell
-                            colSpan={6}
-                            className="py-10 text-center text-sm text-muted-foreground"
-                        >
-                            No validators found.
-                        </TableCell>
+        <>
+            <Table className="relative h-fit w-full">
+                <TableCaption className="sr-only">
+                    Active IOTA validators. Select a validator to explore its
+                    details.
+                </TableCaption>
+                <TableHeader>
+                    <TableRow className="hover:bg-transparent!">
+                        {COLUMNS.map(({ key, label, align }) => {
+                            const active = sortKey === key;
+                            return (
+                                <TableHeaderCell
+                                    key={key}
+                                    label={label}
+                                    align={align}
+                                    icon={
+                                        active
+                                            ? sortDir === "asc"
+                                                ? ArrowUp
+                                                : ArrowDown
+                                            : ArrowUpDown
+                                    }
+                                    iconActive={active}
+                                    sortDirection={sortDir}
+                                    onClick={() => handleSort(key)}
+                                />
+                            );
+                        })}
                     </TableRow>
-                ) : (
-                    sorted.map((validator) => (
-                        <ValidatorRow
-                            key={validator.iotaAddress}
-                            validator={validator}
-                            onClick={handleRowClick}
-                        />
-                    ))
-                )}
-            </TableBody>
-        </Table>
+                </TableHeader>
+                <TableBody>
+                    {initialLoading ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                            <ValidatorRowSkeleton key={i} />
+                        ))
+                    ) : sorted.length === 0 ? (
+                        <TableRow>
+                            <TableCell
+                                colSpan={6}
+                                className="py-10 text-center text-sm text-muted-foreground"
+                            >
+                                No validators found.
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        visible.map((validator) => (
+                            <ValidatorRow
+                                key={validator.iotaAddress}
+                                validator={validator}
+                                onClick={handleRowClick}
+                            />
+                        ))
+                    )}
+                </TableBody>
+            </Table>
+            <div className="validator-pagination">
+                <span>
+                    {initialLoading
+                        ? "Loading validators…"
+                        : sorted.length
+                          ? `${currentPage * pageSize + 1}–${Math.min((currentPage + 1) * pageSize, sorted.length)} of ${sorted.length} validators`
+                          : "0 validators"}
+                </span>
+                <div>
+                    <button
+                        className="icon-button"
+                        aria-label="Previous validator page"
+                        disabled={currentPage === 0 || initialLoading}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    >
+                        <ChevronLeft size={14} />
+                    </button>
+                    <span>
+                        Page {currentPage + 1} of {pageCount}
+                    </span>
+                    <button
+                        className="icon-button"
+                        aria-label="Next validator page"
+                        disabled={
+                            currentPage >= pageCount - 1 || initialLoading
+                        }
+                        onClick={() =>
+                            setPage((p) => Math.min(pageCount - 1, p + 1))
+                        }
+                    >
+                        <ChevronRight size={14} />
+                    </button>
+                </div>
+            </div>
+        </>
     );
 }
 
@@ -200,24 +266,33 @@ const ValidatorRow = memo(function ValidatorRow({
     return (
         <TableRow
             onClick={() => onClick(validator)}
+            tabIndex={0}
+            aria-label={`View ${payload.name}`}
+            onKeyDown={(event) => {
+                if (event.key === "Enter") onClick(validator);
+            }}
             className="cursor-pointer transition-colors"
         >
-            <TableCell className="flex items-center gap-2 font-medium">
-                {payload.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={payload.imageUrl}
-                        alt={payload.name}
-                        className="h-8 w-8 object-contain"
-                        width={20}
-                        height={20}
+            <TableCell>
+                <div className="flex items-center gap-3 font-medium">
+                    <ValidatorAvatar
+                        name={payload.name}
+                        imageUrl={payload.imageUrl}
                     />
-                ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs text-slate-200">
-                        {payload.name.slice(0, 1)}
+                    <div>
+                        <span className="block text-xs">
+                            {shortString(payload.name, 24)}
+                        </span>
+                        <span className="mt-1 block text-[10px] text-muted-foreground">
+                            {validator.geo?.country ?? "Location unavailable"}
+                            {validator.isAtRisk
+                                ? " · At risk"
+                                : validator.isCommitteeMember
+                                  ? " · Committee"
+                                  : ""}
+                        </span>
                     </div>
-                )}
-                <span className="text-xs">{shortString(payload.name, 20)}</span>
+                </div>
             </TableCell>
             <FormattedCell
                 align="right"

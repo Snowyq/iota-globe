@@ -1,191 +1,188 @@
 "use client";
 
-import { CheckpointStreamItem } from "@/app/api/checkpoints/stream/route";
-import { TransactionStreamItem } from "@/app/api/transactions/stream/route";
-import { SiteLink } from "@/components/SiteLink";
-import { Stat } from "@/components/Stat";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ActivitySkeleton } from "@/components/Loading";
+import type { CheckpointStreamItem } from "@/app/api/checkpoints/stream/route";
+import type { TransactionStreamItem } from "@/app/api/transactions/stream/route";
+import { ArrowLeftRight, ArrowUp, Layers3 } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+    EmptyState,
+    Panel,
+    PanelHeader,
+    StreamBadge,
+    TextLink,
+} from "@/features/dashboard/DashboardPrimitives";
 import { useLiveStream } from "@/hooks/useLiveStream";
 import { useNowTime } from "@/hooks/useNowTime";
 import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
 import { shortString, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useBufferedActivity } from "./useBufferedActivity";
 
-const MAX = 20;
-
-function Row({ children }: { children: React.ReactNode }) {
-    return (
-        <div
-            className={cn(
-                "flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs transition-colors"
-            )}
-        >
-            {children}
-        </div>
-    );
-}
-
-function Time({
-    timestampMs,
-    now,
-}: {
-    timestampMs: string | null;
-    now: number;
-}) {
-    const t = timeAgo(timestampMs, now);
-    return (
-        <Stat
-            size={"xs"}
-            className="w-14 shrink-0 text-right text-muted-foreground tabular-nums"
-            value={t.value}
-            sub={t.label}
-        />
-    );
-}
-
-function ListSkeleton() {
-    return (
-        <div className="flex flex-col gap-px">
-            {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                    key={i}
-                    className="flex items-center justify-between px-2 py-1.5"
-                >
-                    <div className="flex flex-col gap-1">
-                        <Skeleton className="h-3 w-28" />
-                        <Skeleton className="h-2.5 w-20" />
-                    </div>
-                    <Skeleton className="h-3 w-10" />
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function TransactionsList() {
-    const [txs, setTxs] = useState<TransactionStreamItem[]>([]);
-    const now = useNowTime();
-
-    useOnNetworkChange(() => setTxs([]));
-
-    useLiveStream<TransactionStreamItem>("/api/transactions/stream", (item) => {
-        setTxs((prev) => {
-            if (prev.some((t) => t.digest === item.digest)) return prev;
-            return [item, ...prev].slice(0, MAX);
-        });
-    });
-
-    if (txs.length === 0) return <ListSkeleton />;
-
-    return (
-        <div className="flex flex-col gap-px">
-            {txs.map((tx, i) => (
-                <Row key={tx.digest}>
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="font-mono text-foreground">
-                            {shortString(tx.digest, 4, 6)}
-                        </span>
-
-                        <span className="text-[10px] text-nowrap text-muted-foreground">
-                            {tx.isSystem
-                                ? "IOTA System"
-                                : shortString(tx.sender, 4, 6)}
-                        </span>
-                    </div>
-                    <div className="flex w-full min-w-0 flex-col items-end gap-0.5 @[25rem]:mr-2">
-                        <Stat
-                            size="xs"
-                            value={
-                                tx.gasIOTA > 0 ? tx.gasIOTA.toFixed(4) : null
-                            }
-                            sub="IOTA"
-                        />
-                        <Stat size="xs" value={tx.txnsCount} sub="txns" />
-                    </div>
-                    <Time timestampMs={tx.timestampMs} now={now} />
-                </Row>
-            ))}
-        </div>
-    );
-}
-
-function CheckpointsList() {
-    const [checkpoints, setCheckpoints] = useState<CheckpointStreamItem[]>([]);
-    const now = useNowTime();
-
-    useOnNetworkChange(() => setCheckpoints([]));
-
-    useLiveStream<CheckpointStreamItem>("/api/checkpoints/stream", (item) => {
-        setCheckpoints((prev) => {
-            if (prev.some((c) => c.sequenceNumber === item.sequenceNumber))
-                return prev;
-            return [item, ...prev].slice(0, MAX);
-        });
-    });
-
-    if (checkpoints.length === 0) return <ListSkeleton />;
-
-    return (
-        <div className="flex flex-col gap-px">
-            {checkpoints.map((cp, i) => (
-                <Row key={cp.sequenceNumber}>
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="font-mono text-foreground">
-                            #{Number(cp.sequenceNumber).toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="mr-5 flex w-full min-w-0 flex-col items-end gap-0.5">
-                        <Stat size="xs" value={cp.txCount} sub="txns" />
-                    </div>
-                    <Time timestampMs={cp.timestampMs} now={now} />
-                </Row>
-            ))}
-        </div>
-    );
-}
+const transactionKey = (item: TransactionStreamItem) => item.digest;
+const checkpointKey = (item: CheckpointStreamItem) => item.sequenceNumber;
 
 export function NetworkLiveCard({ className }: { className?: string }) {
-    const [tab, setTab] = useState("transactions");
-
+    const [tab, setTab] = useState<"transactions" | "checkpoints">(
+        "transactions"
+    );
+    const transactions = useBufferedActivity(transactionKey);
+    const checkpointFeed = useBufferedActivity(checkpointKey);
+    const txs = transactions.items;
+    const checkpoints = checkpointFeed.items;
+    const listRef = useRef<HTMLDivElement>(null);
+    const feed = tab === "transactions" ? transactions : checkpointFeed;
+    const now = useNowTime();
+    useOnNetworkChange(() => {
+        transactions.reset();
+        checkpointFeed.reset();
+        if (listRef.current) listRef.current.scrollTop = 0;
+    });
+    const txStatus = useLiveStream<TransactionStreamItem>(
+        tab === "transactions" ? "/api/transactions/stream" : null,
+        transactions.push
+    );
+    const cpStatus = useLiveStream<CheckpointStreamItem>(
+        tab === "checkpoints" ? "/api/checkpoints/stream" : null,
+        checkpointFeed.push
+    );
+    const status = tab === "transactions" ? txStatus : cpStatus;
+    const empty = tab === "transactions" ? !txs.length : !checkpoints.length;
+    const latest = () => {
+        feed.resume();
+        if (listRef.current) listRef.current.scrollTop = 0;
+    };
+    const changeTab = (next: typeof tab) => {
+        transactions.resume();
+        checkpointFeed.resume();
+        if (listRef.current) listRef.current.scrollTop = 0;
+        setTab(next);
+    };
     return (
-        <Card className={cn("flex flex-col overflow-hidden", className)}>
-            <CardHeader className="shrink-0 pb-0">
-                <CardTitle>Live Activity</CardTitle>
-                <div className="flex items-center justify-between gap-2">
-                    <Tabs value={tab} onValueChange={setTab}>
-                        <TabsList>
-                            <TabsTrigger
-                                className="text-xs"
-                                value="transactions"
-                            >
-                                Transactions
-                            </TabsTrigger>
-                            <TabsTrigger
-                                className="text-xs"
-                                value="checkpoints"
-                            >
-                                Checkpoints
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                    {tab === "transactions" ? (
-                        <SiteLink href={"/transactions"} label="View all" />
-                    ) : null}
-                </div>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1 p-0">
-                <ScrollArea className="h-full px-4 pb-4">
-                    {tab === "transactions" ? (
-                        <TransactionsList />
+        <Panel className={cn("live-panel", className)}>
+            <PanelHeader
+                title="Live activity"
+                action={<StreamBadge status={status} />}
+            />
+            <div className="live-tabs" aria-label="Activity type">
+                <button
+                    aria-pressed={tab === "transactions"}
+                    onClick={() => changeTab("transactions")}
+                >
+                    Transactions
+                </button>
+                <button
+                    aria-pressed={tab === "checkpoints"}
+                    onClick={() => changeTab("checkpoints")}
+                >
+                    Checkpoints
+                </button>
+                <span
+                    className={`live-position ${feed.paused ? "is-held" : ""}`}
+                >
+                    <i aria-hidden="true" />
+                    {feed.paused ? "Reading history" : "At latest"}
+                </span>
+            </div>
+            <div className={`live-feed ${feed.paused ? "is-held" : ""}`}>
+                {feed.paused && (
+                    <button className="live-jump" onClick={latest}>
+                        <ArrowUp size={13} />
+                        {feed.unread
+                            ? `${feed.unread} new ${feed.unread === 1 ? "event" : "events"}`
+                            : "Back to latest"}
+                    </button>
+                )}
+                <div
+                    className="live-list"
+                    ref={listRef}
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Live activity events"
+                    onScroll={(event) => {
+                        if (event.currentTarget.scrollTop > 8) feed.hold();
+                        else feed.resume();
+                    }}
+                >
+                    {empty && status === "connecting" ? (
+                        <ActivitySkeleton />
+                    ) : empty ? (
+                        <EmptyState
+                            error={status === "reconnecting"}
+                            title={
+                                status === "reconnecting"
+                                    ? "Reconnecting to the stream"
+                                    : "Listening for activity"
+                            }
+                            description="New network events appear here automatically."
+                        />
+                    ) : tab === "transactions" ? (
+                        txs.map((tx) => {
+                            const ago = timeAgo(tx.timestampMs, now);
+                            return (
+                                <div className="live-row" key={tx.digest}>
+                                    <span className="live-row-icon">
+                                        <ArrowLeftRight size={12} />
+                                    </span>
+                                    <div>
+                                        <span title={tx.digest}>
+                                            {shortString(tx.digest, 5, 4)}
+                                        </span>
+                                        <small>
+                                            {tx.isSystem
+                                                ? "System transaction"
+                                                : `${tx.txnsCount ?? "—"} operations`}
+                                        </small>
+                                    </div>
+                                    <span className="live-row-gas">
+                                        {tx.gasIOTA.toFixed(4)}
+                                        <small> IOTA</small>
+                                    </span>
+                                    <time>
+                                        {ago.value}
+                                        {ago.label}
+                                    </time>
+                                </div>
+                            );
+                        })
                     ) : (
-                        <CheckpointsList />
+                        checkpoints.map((cp) => {
+                            const ago = timeAgo(cp.timestampMs, now);
+                            return (
+                                <div
+                                    className="live-row"
+                                    key={cp.sequenceNumber}
+                                >
+                                    <span className="live-row-icon">
+                                        <Layers3 size={12} />
+                                    </span>
+                                    <div>
+                                        <span>
+                                            #
+                                            {Number(
+                                                cp.sequenceNumber
+                                            ).toLocaleString("en-US")}
+                                        </span>
+                                        <small>{cp.txCount} transactions</small>
+                                    </div>
+                                    <time>
+                                        {ago.value}
+                                        {ago.label}
+                                    </time>
+                                </div>
+                            );
+                        })
                     )}
-                </ScrollArea>
-            </CardContent>
-        </Card>
+                </div>
+            </div>
+            <div className="panel-bottom-note">
+                <span>
+                    Latest{" "}
+                    {tab === "transactions" ? txs.length : checkpoints.length}{" "}
+                    events
+                </span>
+                <TextLink href="/transactions">View transactions</TextLink>
+            </div>
+        </Panel>
     );
 }
