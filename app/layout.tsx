@@ -1,8 +1,8 @@
-import { Geist, Geist_Mono, Lora } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 
 import Navigation from "@/components/Navigation";
 import { ThemeProvider } from "@/components/theme-provider";
-import { createCustomLayerData } from "@/features/globe/customLayerData";
 import GlobeContextProvider from "@/features/globe/GlobeContext";
 import NetworkContextProvider from "@/features/network/NetworkContext";
 import OptionsContextProvider from "@/features/options/OptionsContext";
@@ -11,7 +11,22 @@ import { cn } from "@/lib/utils";
 import { AppLayout } from "@/views/AppLayout";
 import "./globals.css";
 
-const loraHeading = Lora({ subsets: ["latin"], variable: "--font-heading" });
+export const metadata: Metadata = {
+    title: {
+        default: "IOTA Globe — Network Observatory",
+        template: "%s | IOTA Globe",
+    },
+    description:
+        "Explore IOTA validators, live network activity, staking and epoch analytics.",
+};
+
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    themeColor: "#0c101b",
+    colorScheme: "dark",
+};
 
 const fontSans = Geist({
     subsets: ["latin"],
@@ -20,7 +35,6 @@ const fontSans = Geist({
 
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
-const customLayer = createCustomLayerData();
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -30,25 +44,16 @@ export default function RootLayout({
         <html
             lang="en"
             suppressHydrationWarning
-            className={cn(
-                "antialiased",
-                fontSans.variable,
-                "font-mono",
-                geistMono.variable,
-                loraHeading.variable
-            )}
+            className={cn("antialiased", fontSans.variable, geistMono.variable)}
         >
             <body suppressHydrationWarning>
-                {/* Context Providers hell */}
                 <OptionsContextProvider>
                     <NetworkContextProvider>
                         <ValidatorsContextProvider>
                             <GlobeContextProvider>
                                 <ThemeProvider>
                                     <Navigation />
-                                    <AppLayout customLayerData={customLayer}>
-                                        {children}
-                                    </AppLayout>
+                                    <AppLayout>{children}</AppLayout>
                                 </ThemeProvider>
                             </GlobeContextProvider>
                         </ValidatorsContextProvider>
