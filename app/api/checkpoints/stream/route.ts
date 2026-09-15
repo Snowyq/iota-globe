@@ -1,66 +1,67 @@
-import { IotaClient } from "@iota/iota-sdk/client";
 import { type NextRequest } from "next/server";
 
+import {
+    subscribeCheckpoints,
+    type CheckpointStreamItem,
+} from "@/lib/checkpointHub";
 import { NETWORK_URLS as datasets } from "@/lib/networks";
-import { createSseStream } from "@/lib/sse";
 
-const INITIAL_COUNT = 8;
-const POLL_MS = 2_000;
+export type { CheckpointStreamItem };
 
-export type CheckpointStreamItem = {
-    sequenceNumber: string;
-    txCount: number;
-    timestampMs: string;
-    epoch: string;
-};
+const HEARTBEAT_MS = 15_000;
 
+// Pushes each checkpoint as soon as the shared tail reads it (~200 ms after
+// it is certified), starting with the most recent ones already seen.
 export async function GET(request: NextRequest) {
     const datasetParam =
         request.nextUrl.searchParams.get("dataset") ?? "testnet";
     if (!Object.hasOwn(datasets, datasetParam))
         return new Response("Invalid dataset", { status: 400 });
 
-    const client = new IotaClient({
-        url: datasets[datasetParam as keyof typeof datasets],
-    });
-
-    let lastSeq: number | null = null;
-    const stream = createSseStream<CheckpointStreamItem>({
-        signal: request.signal,
-        intervalMs: POLL_MS,
-        async poll(emit, signal) {
-            const latest = Number(
-                await client.getLatestCheckpointSequenceNumber({ signal })
+    let dispose = () => {};
+    const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+            const encoder = new TextEncoder();
+            let closed = false;
+            const send = (chunk: string) => {
+                if (!closed) controller.enqueue(encoder.encode(chunk));
+            };
+            const unsubscribe = subscribeCheckpoints(
+                datasetParam,
+                datasets[datasetParam],
+                (item) => send(`data: ${JSON.stringify(item)}\n\n`)
             );
-            if (signal.aborted || (lastSeq != null && latest <= lastSeq))
-                return;
-            const start =
-                lastSeq == null
-                    ? Math.max(0, latest - INITIAL_COUNT + 1)
-                    : lastSeq + 1;
-            const end = Math.min(latest, start + 19);
-            const checkpoints = await Promise.all(
-                Array.from({ length: end - start + 1 }, (_, i) =>
-                    client.getCheckpoint({ id: String(start + i), signal })
-                )
-            );
-            if (signal.aborted) return;
-            for (const cp of checkpoints)
-                emit({
-                    sequenceNumber: cp.sequenceNumber,
-                    txCount: cp.transactions.length,
-                    timestampMs: cp.timestampMs,
-                    epoch: cp.epoch,
-                });
-            lastSeq = end;
+            // Comment lines keep proxies from closing a quiet connection.
+            const heartbeat = setInterval(() => send(": hb\n\n"), HEARTBEAT_MS);
+            dispose = () => {
+                if (closed) return;
+                closed = true;
+                clearInterval(heartbeat);
+                unsubscribe();
+                request.signal.removeEventListener("abort", onAbort);
+            };
+            const onAbort = () => {
+                dispose();
+                try {
+                    controller.close();
+                } catch {
+                    // Already closed by the runtime.
+                }
+            };
+            request.signal.addEventListener("abort", onAbort, { once: true });
+            if (request.signal.aborted) onAbort();
+        },
+        cancel() {
+            dispose();
         },
     });
 
     return new Response(stream, {
         headers: {
             "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     });
 }
