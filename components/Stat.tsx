@@ -92,13 +92,18 @@ export function Stat({
         <div className={cn(statVariants({ size }), className)}>
             <div className={cn(innerClassVariants({ size }), innerClassName)}>
                 <span className={valueVariants({ size })}>
-                    {value == null || (typeof value === "number" && isNaN(value)) ? "—" : value}
+                    {value == null ||
+                    (typeof value === "number" && isNaN(value))
+                        ? "—"
+                        : value}
                 </span>
                 {sub && <span className={subVariants({ size })}>{sub}</span>}
                 {withCopy && (
                     <Button
                         onClick={() =>
-                            navigator.clipboard.writeText(copyValue ?? String(value))
+                            navigator.clipboard.writeText(
+                                copyValue ?? String(value)
+                            )
                         }
                         variant={"ghost"}
                         size={size ? ICON_BTN_SIZES[size] : "icon"}

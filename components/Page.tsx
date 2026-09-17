@@ -10,7 +10,7 @@ export function Page({
     return (
         <div
             className={cn(
-                "@container flex w-full min-w-0 flex-col gap-6 [overflow-anchor:none]",
+                "page @container flex w-full min-w-0 flex-col [overflow-anchor:none]",
                 className
             )}
         >
