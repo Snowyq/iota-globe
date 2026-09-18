@@ -1,11 +1,12 @@
 "use client";
 
 import { useContext } from "react";
-import { CalendarDays, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import {
     NetworkMetrics,
     NetworkResources,
 } from "@/features/dashboard/NetworkMetrics";
+import { ChainStrip } from "@/features/dashboard/ChainStrip";
 import { GlobePanel } from "@/features/dashboard/GlobePanel";
 import { StakePanel } from "@/features/dashboard/StakePanel";
 import { EpochProgress } from "@/features/dashboard/EpochProgress";
@@ -13,27 +14,46 @@ import { ThroughputChart } from "@/features/dashboard/ThroughputChart";
 import { ValidatorPreview } from "@/features/dashboard/ValidatorPreview";
 import { NetworkLiveCard } from "@/features/network/NetworkLiveCard";
 import { NetworkContext } from "@/features/network/NetworkContext";
+import { OptionsContext } from "@/features/options/OptionsContext";
+import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
+import { formatDuration } from "@/lib/format";
 import { useNowTime } from "@/hooks/useNowTime";
+
+function OverviewFinding() {
+    const { networkStats, validators } = useContext(ValidatorsContext);
+    const now = useNowTime();
+    if (!networkStats)
+        return <p className="overview-finding">Reading system state…</p>;
+    const start = Number(networkStats.epochStartTimestampMs);
+    const duration = Number(networkStats.epochDurationMs);
+    const progress = duration > 0 ? ((now - start) / duration) * 100 : null;
+    const committee = validators.filter((v) => v.isCommitteeMember).length;
+    return (
+        <p className="overview-finding">
+            Epoch <b>#{networkStats.epoch}</b> is{" "}
+            <b>
+                {progress == null ? "—" : Math.min(100, progress).toFixed(1)}%
+            </b>{" "}
+            through, closing in{" "}
+            <b>{formatDuration(Math.max(0, start + duration - now))}</b>.{" "}
+            <b>
+                {committee} of {validators.length}
+            </b>{" "}
+            validators sign checkpoints.
+        </p>
+    );
+}
 
 export default function Index() {
     const { error, updatedAt, refresh, isLoading } = useContext(NetworkContext);
-    const now = useNowTime("minutes");
+    const { network } = useContext(OptionsContext);
     return (
         <>
             <div className="overview-heading">
-                <div>
-                    <h1>Network overview</h1>
-                    <p>A window into IOTA. Connected, distributed, alive.</p>
-                </div>
-                <span className="heading-date">
-                    <CalendarDays size={13} />
-                    {new Date(now).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        timeZone: "Europe/Warsaw",
-                    })}
-                </span>
+                <h1>
+                    {network === "mainnet" ? "Mainnet" : "Testnet"} observatory
+                </h1>
+                <OverviewFinding />
             </div>
             {error && (
                 <div className="error-banner" role="status">
@@ -57,6 +77,7 @@ export default function Index() {
                 </div>
             )}
             <NetworkMetrics />
+            <ChainStrip />
             <div className="dashboard-grid">
                 <GlobePanel />
                 <StakePanel />
@@ -66,8 +87,10 @@ export default function Index() {
                 <ThroughputChart />
                 <NetworkLiveCard />
             </div>
-            <ValidatorPreview />
-            <NetworkResources />
+            <div className="ledger-grid">
+                <ValidatorPreview />
+                <NetworkResources />
+            </div>
         </>
     );
 }

@@ -28,11 +28,11 @@ export function GlobeSkeleton({
                             y="15"
                             width="370"
                             height="190"
-                            rx="6"
-                            fill="#122438"
-                            stroke="#526b88"
+                            rx="0"
+                            fill="#081217"
+                            stroke="#2b3940"
                         />
-                        <g stroke="#587493" opacity=".35">
+                        <g stroke="#2b4a52" opacity=".35">
                             {[77, 138, 200, 262, 323].map((x) => (
                                 <path key={x} d={`M${x} 15v190`} />
                             ))}
@@ -42,7 +42,7 @@ export function GlobeSkeleton({
                         </g>
                         <path
                             d="M15 110h370"
-                            stroke="#ab9ee8"
+                            stroke="#39e1ff"
                             strokeDasharray="4 9"
                             opacity=".6"
                         />
@@ -51,10 +51,10 @@ export function GlobeSkeleton({
                     <svg viewBox="0 0 320 320" fill="none">
                         <defs>
                             <radialGradient id={`${id}-fill`}>
-                                <stop stopColor="#1e3450" stopOpacity=".5" />
+                                <stop stopColor="#0d1d23" stopOpacity=".5" />
                                 <stop
                                     offset="1"
-                                    stopColor="#0d1b2e"
+                                    stopColor="#070d10"
                                     stopOpacity=".9"
                                 />
                             </radialGradient>
@@ -65,11 +65,11 @@ export function GlobeSkeleton({
                                 x2="320"
                                 y2="320"
                             >
-                                <stop stopColor="#8aaaca" stopOpacity="0" />
-                                <stop offset=".5" stopColor="#b2a7ff" />
+                                <stop stopColor="#39e1ff" stopOpacity="0" />
+                                <stop offset=".5" stopColor="#39e1ff" />
                                 <stop
                                     offset="1"
-                                    stopColor="#8aaaca"
+                                    stopColor="#39e1ff"
                                     stopOpacity="0"
                                 />
                             </linearGradient>
@@ -79,9 +79,9 @@ export function GlobeSkeleton({
                             cy="160"
                             r="118"
                             fill={`url(#${id}-fill)`}
-                            stroke="#415a78"
+                            stroke="#2b3940"
                         />
-                        <g stroke="#587493" opacity=".32">
+                        <g stroke="#2b4a52" opacity=".32">
                             <ellipse cx="160" cy="160" rx="118" ry="40" />
                             <ellipse cx="160" cy="160" rx="118" ry="83" />
                             <ellipse cx="160" cy="160" rx="42" ry="118" />
@@ -97,7 +97,7 @@ export function GlobeSkeleton({
                             strokeDasharray="110 745"
                             strokeWidth="1.5"
                         />
-                        <g stroke="#859db9" opacity=".55">
+                        <g stroke="#4fb8c9" opacity=".55">
                             <path d="M160 17v9m0 268v9M17 160h9m268 0h9" />
                         </g>
                     </svg>
@@ -111,12 +111,12 @@ export function GlobeSkeleton({
                             ? "The network map is taking a little longer"
                             : mode === "map"
                               ? "Preparing the network map"
-                              : "Preparing your view of the network"}
+                              : "Rendering the validator globe"}
                     </strong>
                     <p>
                         {slow
                             ? "Network metrics remain available while the map starts."
-                            : "The map loads in the background. You can keep exploring."}
+                            : "Drawn in a background worker. The rest of the page is live."}
                     </p>
                 </div>
             </div>

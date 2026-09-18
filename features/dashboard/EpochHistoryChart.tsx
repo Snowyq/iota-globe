@@ -11,6 +11,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { chartAxis, theme } from "@/lib/theme";
 import type { EpochRow } from "@/app/api/epochs/route";
 import { EmptyState, Panel, PanelHeader, compact } from "./DashboardPrimitives";
 
@@ -40,7 +41,7 @@ export function EpochHistoryChart({
     return (
         <Panel>
             <PanelHeader
-                title="Activity across epochs"
+                title="Epoch output"
                 description="Completed epochs on the current page"
                 action={
                     <div className="segmented" aria-label="Epoch chart metric">
@@ -81,30 +82,25 @@ export function EpochHistoryChart({
                             }}
                         >
                             <CartesianGrid
-                                stroke="#ffffff09"
+                                stroke={chartAxis.grid}
                                 vertical={false}
                             />
                             <XAxis
                                 dataKey="epoch"
-                                tick={{ fill: "#8590a9", fontSize: 10 }}
+                                tick={chartAxis.tick}
                                 axisLine={false}
                                 tickLine={false}
                                 minTickGap={20}
                             />
                             <YAxis
                                 tickFormatter={(v) => compact(v, 1)}
-                                tick={{ fill: "#8590a9", fontSize: 10 }}
+                                tick={chartAxis.tick}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip
-                                cursor={{ fill: "#a99bff07" }}
-                                contentStyle={{
-                                    background: "#171e31",
-                                    border: "1px solid #30394e",
-                                    borderRadius: 10,
-                                    fontSize: 12,
-                                }}
+                                cursor={{ fill: "#ffffff08" }}
+                                contentStyle={chartAxis.tooltip}
                                 labelFormatter={(v) => `Epoch #${v}`}
                                 formatter={(v) => [
                                     `${Number(v).toLocaleString("en-US")}${metric === "rewards" ? " IOTA" : ""}`,
@@ -117,10 +113,11 @@ export function EpochHistoryChart({
                                 dataKey={metric}
                                 fill={
                                     metric === "transactions"
-                                        ? "#929ce8"
-                                        : "#6eafa9"
+                                        ? theme.accent
+                                        : theme.series2
                                 }
-                                radius={[3, 3, 0, 0]}
+                                fillOpacity={0.85}
+                                radius={0}
                                 maxBarSize={40}
                                 isAnimationActive={false}
                             />

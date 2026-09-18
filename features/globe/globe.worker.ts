@@ -52,50 +52,82 @@ let mapHalfWidth = 2.15,
     mapHalfHeight = 1.15;
 const currentView = () => (mode === "globe" ? globeView : mapView);
 
+// Land is drawn once into a mask, then resampled as a dot matrix. The
+// horizontal pitch widens towards the poles so dots stay round on the sphere.
 function makeTexture() {
-    const canvas = new OffscreenCanvas(2048, 1024);
+    const W = 2048,
+        H = 1024;
+    const mask = new OffscreenCanvas(W, H);
+    const maskCtx = mask.getContext("2d", { willReadFrequently: true });
+    const canvas = new OffscreenCanvas(W, H);
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Map texture could not be prepared");
-    ctx.fillStyle = "#0b1b30";
-    ctx.fillRect(0, 0, 2048, 1024);
+    if (!ctx || !maskCtx) throw new Error("Map texture could not be prepared");
     const land = feature(
         landTopology as unknown as Parameters<typeof feature>[0],
         landTopology.objects.land as unknown as Parameters<typeof feature>[1]
     ) as unknown as {
         features: { geometry: { type: string; coordinates: number[][][][] } }[];
     };
-    ctx.fillStyle = "#47759a";
-    ctx.strokeStyle = "#6190b0";
-    ctx.lineWidth = 0.65;
+    maskCtx.fillStyle = "#fff";
     for (const item of land.features) {
         const polygons =
             item.geometry.type === "Polygon"
                 ? [item.geometry.coordinates as unknown as number[][][]]
                 : item.geometry.coordinates;
         for (const polygon of polygons) {
-            for (const offset of [-2048, 0, 2048]) {
-                ctx.beginPath();
+            for (const offset of [-W, 0, W]) {
+                maskCtx.beginPath();
                 for (const ring of polygon) {
                     let previousLng = ring[0]?.[0] ?? 0;
                     ring.forEach(([lng, lat], index) => {
                         while (lng - previousLng > 180) lng -= 360;
                         while (lng - previousLng < -180) lng += 360;
                         previousLng = lng;
-                        const x = ((lng + 180) / 360) * 2048 + offset,
-                            y = ((90 - lat) / 180) * 1024;
-                        if (index === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
+                        const x = ((lng + 180) / 360) * W + offset,
+                            y = ((90 - lat) / 180) * H;
+                        if (index === 0) maskCtx.moveTo(x, y);
+                        else maskCtx.lineTo(x, y);
                     });
-                    ctx.closePath();
+                    maskCtx.closePath();
                 }
-                ctx.fill("evenodd");
-                ctx.stroke();
+                maskCtx.fill("evenodd");
             }
+        }
+    }
+    const pixels = maskCtx.getImageData(0, 0, W, H).data;
+    ctx.fillStyle = "#081217";
+    ctx.fillRect(0, 0, W, H);
+    // Faint graticule every 15 degrees.
+    ctx.strokeStyle = "rgba(57, 225, 255, 0.07)";
+    ctx.lineWidth = 1;
+    for (let lng = 0; lng <= 360; lng += 15) {
+        const x = (lng / 360) * W;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+    }
+    for (let lat = 0; lat <= 180; lat += 15) {
+        const y = (lat / 180) * H;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+    }
+    const pitch = 7;
+    ctx.fillStyle = "#4fb8c9";
+    for (let y = pitch / 2; y < H; y += pitch) {
+        const lat = 90 - (y / H) * 180;
+        const stepX = pitch / Math.max(Math.cos((lat * Math.PI) / 180), 0.18);
+        for (let x = stepX / 2; x < W; x += stepX) {
+            const index = (Math.floor(y) * W + Math.floor(x)) * 4;
+            if (pixels[index + 3] > 127)
+                ctx.fillRect(x - 1.6, y - 1.6, 3.2, 3.2);
         }
     }
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 2;
+    texture.anisotropy = 4;
     return texture;
 }
 
@@ -179,9 +211,9 @@ function updateLinks() {
         const line = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(positions),
             new THREE.LineBasicMaterial({
-                color: 0x88bbd9,
+                color: 0x39e1ff,
                 transparent: true,
-                opacity: 0.22,
+                opacity: 0.3,
             })
         );
         globeLinks.add(line);
@@ -292,8 +324,8 @@ function init(message: Extract<WorkerInput, { type: "init" }>) {
             geometry,
             new THREE.MeshPhongMaterial({
                 map: texture,
-                shininess: 12,
-                specular: 0x192c40,
+                shininess: 8,
+                specular: 0x0a2a33,
             })
         )
     );
@@ -301,15 +333,15 @@ function init(message: Extract<WorkerInput, { type: "init" }>) {
         new THREE.Mesh(
             new THREE.SphereGeometry(1.035, 48, 32),
             new THREE.MeshBasicMaterial({
-                color: 0x668db0,
+                color: 0x39e1ff,
                 transparent: true,
-                opacity: 0.17,
+                opacity: 0.07,
                 side: THREE.BackSide,
             })
         )
     );
-    globeScene.add(new THREE.AmbientLight(0xc3d5ef, 1.65));
-    const light = new THREE.DirectionalLight(0xffffff, 1.35);
+    globeScene.add(new THREE.AmbientLight(0xd6f6ff, 1.9));
+    const light = new THREE.DirectionalLight(0xffffff, 0.9);
     light.position.set(-3, 4, 5);
     globeScene.add(light);
     mapScene.add(
@@ -333,9 +365,9 @@ function init(message: Extract<WorkerInput, { type: "init" }>) {
         new THREE.LineSegments(
             new THREE.BufferGeometry().setFromPoints(grid),
             new THREE.LineBasicMaterial({
-                color: 0x83a8c6,
+                color: 0x39e1ff,
                 transparent: true,
-                opacity: 0.1,
+                opacity: 0.05,
             })
         )
     );
