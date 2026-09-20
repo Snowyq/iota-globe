@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { SearchField } from "@/components/SearchField";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import ValidatorsTable from "@/features/validators/ValidatorsTable";
-import { Coins, Globe2, ShieldCheck, TrendingUp, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { useContext, useState } from "react";
 import {
     EmptyState,
@@ -52,7 +52,7 @@ export default function ValidatorsPage() {
         <Page>
             <PageHeader
                 title="Validators"
-                description="Meet the independent operators securing the IOTA network."
+                description="Every operator in the active set: stake, yield, commission and where their nodes answer from."
             />
             {error && (
                 <div className="error-banner" role="status">
@@ -70,44 +70,36 @@ export default function ValidatorsPage() {
             <div className="page-summary">
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Active validators"
+                    label="Active set"
                     value={networkStats ? validators.length : null}
                     detail={`${committeeCount} in the committee`}
-                    icon={ShieldCheck}
-                    tone="blue"
                 />
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Total delegated stake"
+                    label="Delegated stake"
                     value={networkStats ? compact(total) : "—"}
                     unit="IOTA"
                     detail="Across active validators"
-                    icon={Coins}
-                    tone="purple"
                 />
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Average validator APY"
+                    label="Mean APY"
                     value={averageApy?.toFixed(2)}
                     unit="%"
-                    detail="Unweighted network average"
-                    icon={TrendingUp}
-                    tone="teal"
+                    detail="Unweighted across validators"
                 />
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Countries located"
+                    label="Countries"
                     value={networkStats ? countries.size : null}
                     detail={`${located} of ${validators.length} validators geolocated`}
-                    icon={Globe2}
-                    tone="amber"
                 />
             </div>
             <div className="validator-insights">
                 <Panel>
                     <PanelHeader
-                        title="Global footprint"
-                        description="Top countries by validator count · IP estimates"
+                        title="Where validators run"
+                        description="Top countries by node count · IP estimates"
                     />
                     <div className="country-bars">
                         {topCountries.length ? (
@@ -138,8 +130,8 @@ export default function ValidatorsPage() {
                 </Panel>
                 <Panel>
                     <PanelHeader
-                        title="Validator participation"
-                        description="Composition of the current active set"
+                        title="Committee"
+                        description="Who signs checkpoints this epoch"
                     />
                     <div className="participation-chart">
                         <div
@@ -157,7 +149,7 @@ export default function ValidatorsPage() {
                             <span>
                                 <i
                                     className="legend-dot"
-                                    style={{ background: "#a99bff" }}
+                                    style={{ background: "var(--accent)" }}
                                 />
                                 Committee members
                                 <strong>
@@ -167,7 +159,7 @@ export default function ValidatorsPage() {
                             <span>
                                 <i
                                     className="legend-dot"
-                                    style={{ background: "#526b91" }}
+                                    style={{ background: "var(--line-strong)" }}
                                 />
                                 Non-committee
                                 <strong>
@@ -177,7 +169,7 @@ export default function ValidatorsPage() {
                             <span>
                                 <i
                                     className="legend-dot"
-                                    style={{ background: "#d3b48d" }}
+                                    style={{ background: "var(--warning)" }}
                                 />
                                 Flagged at risk
                                 <strong>

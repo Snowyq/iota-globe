@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { computeValidatorStats } from "@/features/validators/stats";
+import {
+    computeValidatorStats,
+    nakamotoCoefficient,
+} from "@/features/validators/stats";
 import { validatorRecord, rewardEvent } from "../helpers/fixtures";
 
 describe("validator statistics", () => {
@@ -47,5 +50,20 @@ describe("validator statistics", () => {
             computeValidatorStats(validatorRecord(), [event])
                 .lastEpochRewardIOTA
         ).toBeNull();
+    });
+});
+
+describe("nakamoto coefficient", () => {
+    it("counts the fewest validators holding more than a third of voting power", () => {
+        expect(nakamotoCoefficient([40, 30, 20, 10])).toBe(1);
+        expect(nakamotoCoefficient([25, 25, 25, 25])).toBe(2);
+        expect(
+            nakamotoCoefficient([10, 10, 10, 10, 10, 10, 10, 10, 10, 10])
+        ).toBe(4);
+    });
+    it("ignores missing values and reports null without voting power", () => {
+        expect(nakamotoCoefficient([])).toBeNull();
+        expect(nakamotoCoefficient([0, Number.NaN])).toBeNull();
+        expect(nakamotoCoefficient([Number.NaN, 50, 50])).toBe(1);
     });
 });

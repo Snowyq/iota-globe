@@ -1,7 +1,8 @@
 "use client";
 
 import { ChartSkeleton } from "@/components/Loading";
-import { useContext, useId, useState } from "react";
+import { useContext, useState } from "react";
+import { chartAxis, theme } from "@/lib/theme";
 import {
     Area,
     AreaChart,
@@ -24,13 +25,13 @@ const timeLabel = (time: number) =>
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
+        timeZone: "UTC",
     });
 
 export function ThroughputChart() {
     const { samples, streamStatus, networkMetrics } =
         useContext(NetworkContext);
     const [range, setRange] = useState(60);
-    const id = useId().replace(/:/g, "");
     const latest = samples.at(-1);
     const data = latest
         ? samples.filter((s) => s.timestamp >= latest.timestamp - range * 1000)
@@ -42,8 +43,8 @@ export function ThroughputChart() {
     return (
         <Panel className="throughput-panel">
             <PanelHeader
-                title="Network throughput"
-                description="Transactions per second"
+                title="Throughput"
+                description="Transactions per second, sampled live"
                 action={
                     <div className="chart-actions">
                         <StreamBadge status={streamStatus} />
@@ -96,28 +97,8 @@ export function ThroughputChart() {
                             data={data}
                             margin={{ top: 12, right: 6, left: -24, bottom: 0 }}
                         >
-                            <defs>
-                                <linearGradient
-                                    id={id}
-                                    x1="0"
-                                    y1="0"
-                                    x2="0"
-                                    y2="1"
-                                >
-                                    <stop
-                                        offset="0%"
-                                        stopColor="#849bff"
-                                        stopOpacity={0.3}
-                                    />
-                                    <stop
-                                        offset="100%"
-                                        stopColor="#849bff"
-                                        stopOpacity={0.01}
-                                    />
-                                </linearGradient>
-                            </defs>
                             <CartesianGrid
-                                stroke="#ffffff09"
+                                stroke={chartAxis.grid}
                                 vertical={false}
                             />
                             <XAxis
@@ -125,24 +106,20 @@ export function ThroughputChart() {
                                 type="number"
                                 domain={["dataMin", "dataMax"]}
                                 tickFormatter={timeLabel}
-                                tick={{ fill: "#8590a9", fontSize: 10 }}
+                                tick={chartAxis.tick}
                                 axisLine={false}
                                 tickLine={false}
                                 minTickGap={55}
                             />
                             <YAxis
-                                tick={{ fill: "#8590a9", fontSize: 10 }}
+                                tick={chartAxis.tick}
                                 axisLine={false}
                                 tickLine={false}
                                 domain={[0, "auto"]}
                             />
                             <Tooltip
-                                contentStyle={{
-                                    background: "#171e31",
-                                    border: "1px solid #30394e",
-                                    borderRadius: 10,
-                                    fontSize: 12,
-                                }}
+                                contentStyle={chartAxis.tooltip}
+                                cursor={{ stroke: theme.lineStrong }}
                                 labelFormatter={(v) => timeLabel(Number(v))}
                                 formatter={(v) => [
                                     `${Number(v).toFixed(2)} tx/s`,
@@ -150,11 +127,12 @@ export function ThroughputChart() {
                                 ]}
                             />
                             <Area
-                                type="monotone"
+                                type="stepAfter"
                                 dataKey="tps"
-                                stroke="#97a9ff"
-                                strokeWidth={2}
-                                fill={`url(#${id})`}
+                                stroke={theme.accent}
+                                strokeWidth={1.5}
+                                fill={theme.accent}
+                                fillOpacity={0.07}
                                 isAnimationActive={false}
                             />
                         </AreaChart>
@@ -175,9 +153,9 @@ export function ThroughputChart() {
             </div>
             <div className="chart-footnote">
                 <span>
-                    <i /> Live network samples
+                    <i /> Samples collected this session
                 </span>
-                <span>Last {range / 60} min · collected this session</span>
+                <span>Window {range / 60} min · UTC</span>
             </div>
         </Panel>
     );

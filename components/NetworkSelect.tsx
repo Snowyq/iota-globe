@@ -7,16 +7,18 @@ const networks = [
     {
         value: "mainnet",
         name: "IOTA Mainnet",
+        short: "Mainnet",
         description: "Production network",
     },
     {
         value: "testnet",
         name: "IOTA Testnet",
+        short: "Testnet",
         description: "Development network",
     },
 ] as const;
 
-// A select-only combobox kept inside the drawer: no portal or body scroll lock.
+// A select-only combobox in the top bar: no portal or body scroll lock.
 export function NetworkSelect({
     value,
     onChange,
@@ -123,9 +125,9 @@ export function NetworkSelect({
                     className={`network-select-dot ${value}`}
                     aria-hidden="true"
                 />
-                <span>
-                    <strong>{networks[selected].name}</strong>
-                    <small>{networks[selected].description}</small>
+                <span className="network-select-value">
+                    <span className="sr-only">IOTA </span>
+                    {networks[selected].short}
                 </span>
                 <ChevronDown size={15} aria-hidden="true" />
             </button>

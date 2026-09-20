@@ -27,8 +27,8 @@ export function ValidatorPreview() {
             aria-busy={isLoading && !validators.length}
         >
             <PanelHeader
-                title="Leading validators"
-                description="Ranked by total stake"
+                title="Largest validators"
+                description="Ranked by stake delegated to their pools"
                 action={<TextLink href="/validators">All validators</TextLink>}
             />
             <div className="validator-preview-body">

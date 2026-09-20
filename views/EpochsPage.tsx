@@ -24,15 +24,7 @@ import { NetworkContext } from "@/features/network/NetworkContext";
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import { formatDuration } from "@/lib/format";
-import {
-    ArrowLeft,
-    ArrowLeftRight,
-    ArrowRight,
-    Coins,
-    Layers3,
-    Timer,
-    WifiOff,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, WifiOff } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 
 export default function EpochsPage() {
@@ -110,7 +102,7 @@ export default function EpochsPage() {
         <Page>
             <PageHeader
                 title="Epoch history"
-                description="Explore the rhythm of the network, one epoch at a time."
+                description="Completed epochs with their transactions, staking rewards and storage flows."
             />
             <div className="page-summary">
                 <Metric
@@ -118,15 +110,12 @@ export default function EpochsPage() {
                     isLoading={validatorsLoading && !networkStats}
                     value={networkStats ? `#${networkStats.epoch}` : null}
                     detail="Current network cycle"
-                    icon={Layers3}
                 />
                 <Metric
                     label="Last epoch transactions"
                     isLoading={networkLoading && !networkMetrics}
                     value={compact(lastEpochTransactions)}
                     detail="Most recently completed epoch"
-                    icon={ArrowLeftRight}
-                    tone="purple"
                 />
                 <Metric
                     label="Last epoch rewards"
@@ -136,8 +125,6 @@ export default function EpochsPage() {
                     )}
                     unit="IOTA"
                     detail="Distributed staking rewards"
-                    icon={Coins}
-                    tone="teal"
                 />
                 <Metric
                     label="Epoch duration"
@@ -154,8 +141,6 @@ export default function EpochsPage() {
                             ? `Checkpoint #${Number(networkMetrics.currentCheckpoint).toLocaleString("en-US")}`
                             : "Awaiting system state"
                     }
-                    icon={Timer}
-                    tone="amber"
                 />
             </div>
             <div className="epoch-page-progress">
@@ -204,7 +189,7 @@ export default function EpochsPage() {
                         }
                     />
                 ) : (
-                    <Table>
+                    <Table className="stack-table">
                         <TableCaption>
                             Amounts in IOTA. The current epoch is still
                             accumulating transactions and rewards.
@@ -239,7 +224,7 @@ export default function EpochsPage() {
                             {epochs.map((epoch) => (
                                 <TableRow key={epoch.epoch}>
                                     <TableCell>
-                                        <span className="font-medium text-[#c1b7f3]">
+                                        <span className="font-mono font-medium text-primary">
                                             #{epoch.epoch}
                                         </span>
                                         {epoch.epochEndTimestamp == null && (
@@ -248,12 +233,18 @@ export default function EpochsPage() {
                                             </span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell
+                                        data-label="Transactions"
+                                        className="text-right tabular-nums"
+                                    >
                                         {Number(
                                             epoch.totalTransactions
                                         ).toLocaleString("en-US")}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell
+                                        data-label="Rewards (IOTA)"
+                                        className="text-right tabular-nums"
+                                    >
                                         {epoch.stakeRewardsNano == null
                                             ? "—"
                                             : (
@@ -264,14 +255,20 @@ export default function EpochsPage() {
                                                   maximumFractionDigits: 2,
                                               })}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell
+                                        data-label="Last checkpoint"
+                                        className="text-right tabular-nums"
+                                    >
                                         {epoch.lastCheckpointId == null
                                             ? "—"
                                             : Number(
                                                   epoch.lastCheckpointId
                                               ).toLocaleString("en-US")}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell
+                                        data-label="Storage inflow"
+                                        className="text-right tabular-nums"
+                                    >
                                         {epoch.storageNetInflowNano == null
                                             ? "—"
                                             : (
@@ -282,7 +279,10 @@ export default function EpochsPage() {
                                                   maximumFractionDigits: 2,
                                               })}
                                     </TableCell>
-                                    <TableCell className="text-right text-muted-foreground">
+                                    <TableCell
+                                        data-label="Ended"
+                                        className="text-right text-muted-foreground"
+                                    >
                                         {epoch.epochEndTimestamp
                                             ? new Date(
                                                   Number(

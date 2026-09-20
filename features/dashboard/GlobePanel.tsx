@@ -180,8 +180,8 @@ export function GlobePanel() {
                 className={`globe-panel ${viewMode === "map" ? "is-map" : ""} ${expanded ? "is-expanded" : ""} ${inspectorOpen ? "has-inspector" : ""}`}
             >
                 <PanelHeader
-                    title="A globally connected network"
-                    description="Explore the validators securing IOTA"
+                    title="Validator map"
+                    description="Where the active set answers from"
                     action={
                         <button
                             ref={expandRef}

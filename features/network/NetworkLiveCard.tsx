@@ -61,7 +61,7 @@ export function NetworkLiveCard({ className }: { className?: string }) {
     return (
         <Panel className={cn("live-panel", className)}>
             <PanelHeader
-                title="Live activity"
+                title="Activity feed"
                 action={<StreamBadge status={status} />}
             />
             <div className="live-tabs" aria-label="Activity type">

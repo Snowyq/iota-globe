@@ -1,7 +1,6 @@
 "use client";
 
 import { SkeletonBlock } from "@/components/Loading";
-import type { LucideIcon } from "lucide-react";
 import { ArrowUpRight, Radio, WifiOff } from "lucide-react";
 import Link from "next/link";
 import type { StreamStatus } from "@/hooks/useLiveStream";
@@ -56,26 +55,17 @@ export function Metric({
     value,
     unit,
     detail,
-    icon: Icon,
-    tone = "blue",
     isLoading = false,
 }: {
     label: string;
     value: React.ReactNode;
     unit?: string;
     detail: React.ReactNode;
-    icon: LucideIcon;
-    tone?: "blue" | "purple" | "teal" | "amber";
     isLoading?: boolean;
 }) {
     return (
-        <div className={`metric-card tone-${tone}`} aria-busy={isLoading}>
-            <div className="metric-top">
-                <span>{label}</span>
-                <span className="metric-icon">
-                    <Icon size={17} strokeWidth={1.7} />
-                </span>
-            </div>
+        <div className="metric-card" aria-busy={isLoading}>
+            <span className="metric-label">{label}</span>
             <div className="metric-value">
                 {isLoading ? (
                     <>
@@ -87,7 +77,7 @@ export function Metric({
                 ) : (
                     <>
                         {value ?? "—"}
-                        <span>{unit}</span>
+                        {unit && <span>{unit}</span>}
                     </>
                 )}
             </div>

@@ -30,3 +30,22 @@ export function computeValidatorStats(
             : null,
     };
 }
+
+/**
+ * Nakamoto coefficient for a BFT committee: the smallest number of
+ * validators whose combined voting power exceeds one third of the total,
+ * i.e. enough to halt consensus. Returns null when no power is reported.
+ */
+export function nakamotoCoefficient(votingPower: number[]): number | null {
+    const sorted = votingPower
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .sort((a, b) => b - a);
+    const total = sorted.reduce((sum, value) => sum + value, 0);
+    if (!total) return null;
+    let running = 0;
+    for (let i = 0; i < sorted.length; i++) {
+        running += sorted[i];
+        if (running > total / 3) return i + 1;
+    }
+    return sorted.length;
+}

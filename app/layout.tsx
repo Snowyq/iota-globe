@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 
 import Navigation from "@/components/Navigation";
@@ -24,16 +24,21 @@ export const viewport: Viewport = {
     width: "device-width",
     initialScale: 1,
     viewportFit: "cover",
-    themeColor: "#0c101b",
+    themeColor: "#0b0f11",
     colorScheme: "dark",
 };
 
-const fontSans = Geist({
+// Archivo carries a width axis: normal width for text, expanded for display.
+const fontSans = Archivo({
     subsets: ["latin"],
+    axes: ["wdth"],
     variable: "--font-sans",
 });
 
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
+const fontMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono",
+});
 
 export default function RootLayout({
     children,
@@ -44,7 +49,7 @@ export default function RootLayout({
         <html
             lang="en"
             suppressHydrationWarning
-            className={cn("antialiased", fontSans.variable, geistMono.variable)}
+            className={cn("antialiased", fontSans.variable, fontMono.variable)}
         >
             <body suppressHydrationWarning>
                 <OptionsContextProvider>

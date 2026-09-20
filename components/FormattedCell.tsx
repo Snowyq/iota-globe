@@ -8,6 +8,7 @@ type FormattedCellProps = {
     align?: "left" | "center" | "right";
     size?: "xs" | "sm" | "default" | "lg";
     className?: string;
+    dataLabel?: string;
 };
 
 export function FormattedCell({
@@ -16,9 +17,11 @@ export function FormattedCell({
     align = "left",
     size = "xs",
     className,
+    dataLabel,
 }: FormattedCellProps) {
     return (
         <TableCell
+            data-label={dataLabel}
             className={cn(
                 align === "center" && "text-center",
                 align === "right" && "text-right",
