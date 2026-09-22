@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 import { GET as network } from "@/app/api/network/route";
 import { GET as validators } from "@/app/api/validators/route";
 import { GET as epochs } from "@/app/api/epochs/route";
-import { GET as tps } from "@/app/api/tps/stream/route";
 import { GET as checkpoints } from "@/app/api/checkpoints/stream/route";
 import { GET as transactions } from "@/app/api/transactions/stream/route";
 
@@ -15,7 +14,6 @@ describe.each([
     ["network", network],
     ["validators", validators],
     ["epochs", epochs],
-    ["TPS stream", tps],
     ["checkpoint stream", checkpoints],
     ["transaction stream", transactions],
 ] as const)("%s dataset validation", (_name, get) => {

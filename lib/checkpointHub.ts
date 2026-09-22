@@ -7,19 +7,24 @@ export type CheckpointStreamItem = {
     epoch: string;
 };
 
-type Listener = (item: CheckpointStreamItem) => void;
+// What the tail keeps per checkpoint: the streamed fields plus the digests
+// of its transactions, which feed the transaction tail.
+export type CheckpointRecord = CheckpointStreamItem & { digests: string[] };
+
+type Listener = (record: CheckpointRecord) => void;
 
 // IOTA certifies a checkpoint roughly every 200 ms and the JSON-RPC API has
 // no checkpoint subscription, so the hub tails the chain with one paginated
 // read per tick. One tail per network is shared by every open stream.
 const TICK_MS = 150;
 const IDLE_BACKOFF_MS = 2_000;
-const PAGE_LIMIT = 50;
-const BACKLOG = 28;
+const PAGE_LIMIT = 100;
+// About a minute of chain, so a new page can draw its throughput trace at once.
+const BACKLOG = 300;
 
 class CheckpointTail {
     private listeners = new Set<Listener>();
-    private backlog: CheckpointStreamItem[] = [];
+    private backlog: CheckpointRecord[] = [];
     private cursor: number | null = null;
     private timer: ReturnType<typeof setTimeout> | null = null;
     private controller: AbortController | null = null;
@@ -35,6 +40,17 @@ class CheckpointTail {
             this.listeners.delete(listener);
             if (!this.listeners.size) this.stop();
         };
+    }
+
+    // One failing subscriber must not stall the tail for everyone else.
+    private emit(item: CheckpointRecord) {
+        for (const listener of this.listeners) {
+            try {
+                listener(item);
+            } catch (error) {
+                console.error("Checkpoint listener failed", error);
+            }
+        }
     }
 
     private start() {
@@ -73,15 +89,17 @@ class CheckpointTail {
             });
             if (controller.signal.aborted) return;
             for (const cp of page.data) {
-                const item: CheckpointStreamItem = {
+                const item: CheckpointRecord = {
                     sequenceNumber: cp.sequenceNumber,
                     txCount: cp.transactions.length,
                     timestampMs: cp.timestampMs,
                     epoch: cp.epoch,
+                    digests: cp.transactions,
                 };
                 this.cursor = Number(cp.sequenceNumber);
-                this.backlog = [...this.backlog, item].slice(-BACKLOG);
-                for (const listener of this.listeners) listener(item);
+                this.backlog.push(item);
+                if (this.backlog.length > BACKLOG) this.backlog.shift();
+                this.emit(item);
             }
             this.failures = 0;
         } catch {
@@ -103,17 +121,35 @@ class CheckpointTail {
 const globalHub = globalThis as typeof globalThis & {
     __checkpointTails?: Map<string, CheckpointTail>;
 };
-const tails = (globalHub.__checkpointTails ??= new Map());
+const tails: Map<string, CheckpointTail> = (globalHub.__checkpointTails ??=
+    new Map());
 
-export function subscribeCheckpoints(
-    network: string,
-    url: string,
-    listener: Listener
-) {
+function tailFor(network: string, url: string) {
     let tail = tails.get(network);
     if (!tail) {
         tail = new CheckpointTail(new IotaClient({ url }));
         tails.set(network, tail);
     }
-    return tail.subscribe(listener);
+    return tail;
+}
+
+// Full records, digests included. Used on the server only.
+export function subscribeCheckpointRecords(
+    network: string,
+    url: string,
+    listener: Listener
+) {
+    return tailFor(network, url).subscribe(listener);
+}
+
+// The streamed shape: what a browser receives for each checkpoint.
+export function subscribeCheckpoints(
+    network: string,
+    url: string,
+    listener: (item: CheckpointStreamItem) => void
+) {
+    return tailFor(network, url).subscribe(
+        ({ sequenceNumber, txCount, timestampMs, epoch }) =>
+            listener({ sequenceNumber, txCount, timestampMs, epoch })
+    );
 }

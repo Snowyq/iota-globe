@@ -38,7 +38,7 @@ describe("checkpoint tail", () => {
 
     it("shares one tail per network, replays the backlog and resumes from the cursor", async () => {
         const { subscribeCheckpoints } = await load();
-        rpc.getLatestCheckpointSequenceNumber.mockResolvedValue("100");
+        rpc.getLatestCheckpointSequenceNumber.mockResolvedValue("1000");
         rpc.getCheckpoints
             .mockResolvedValueOnce({ data: [checkpoint(99), checkpoint(100)] })
             .mockRejectedValueOnce(new Error("rpc down"))
@@ -52,14 +52,12 @@ describe("checkpoint tail", () => {
         await vi.advanceTimersByTimeAsync(0);
         expect(first).toEqual(["99", "100"]);
         expect(rpc.getCheckpoints).toHaveBeenLastCalledWith(
-            expect.objectContaining({ cursor: "72", descendingOrder: false })
+            expect.objectContaining({ cursor: "700", descendingOrder: false })
         );
 
         const second: string[] = [];
-        const stopSecond = subscribeCheckpoints(
-            "mainnet",
-            "http://rpc",
-            (cp) => second.push(cp.sequenceNumber)
+        const stopSecond = subscribeCheckpoints("mainnet", "http://rpc", (cp) =>
+            second.push(cp.sequenceNumber)
         );
         expect(second).toEqual(["99", "100"]);
         expect(constructed).toHaveBeenCalledTimes(1);
