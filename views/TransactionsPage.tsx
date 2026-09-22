@@ -22,6 +22,7 @@ import {
 } from "@/features/dashboard/DashboardPrimitives";
 import { ThroughputChart } from "@/features/dashboard/ThroughputChart";
 import { NetworkContext } from "@/features/network/NetworkContext";
+import { useThroughputSamples } from "@/features/network/CheckpointStream";
 import { useLiveStream } from "@/hooks/useLiveStream";
 import { useNowTime } from "@/hooks/useNowTime";
 import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
@@ -34,9 +35,9 @@ export default function TransactionsPage() {
     const {
         totalTransactions,
         networkMetrics,
-        samples,
         isLoading: networkLoading,
     } = useContext(NetworkContext);
+    const { samples } = useThroughputSamples();
     const [txs, setTxs] = useState<TransactionStreamItem[]>([]);
     const [snapshot, setSnapshot] = useState<TransactionStreamItem[] | null>(
         null

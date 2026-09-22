@@ -7,7 +7,7 @@ import OptionsContextProvider, {
 import NetworkContextProvider, {
     NetworkContext,
 } from "@/features/network/NetworkContext";
-import { installEventSource, TestEventSource } from "../helpers/eventSource";
+import { installEventSource } from "../helpers/eventSource";
 import { deferred, snapshotResponse } from "../helpers/async";
 import { networkSnapshot } from "../helpers/fixtures";
 
@@ -96,19 +96,6 @@ describe("network data provider", () => {
         });
         expect(result.current.data.totalTransactions).toBe("testnet-value");
     });
-    it("bounds live samples and clears history when switching networks", async () => {
-        request.mockResolvedValue(snapshotResponse(networkSnapshot()));
-        const { result } = mount();
-        await waitFor(() => expect(result.current.data.isLoading).toBe(false));
-        act(() => {
-            for (let i = 0; i < 305; i++)
-                TestEventSource.instances[0].emit({ currentTps: i });
-        });
-        expect(result.current.data.samples).toHaveLength(300);
-        expect(result.current.data.samples[0].tps).toBe(5);
-        act(() => result.current.options.selectNetwork?.("testnet"));
-        expect(result.current.data.samples).toEqual([]);
-    });
     it("does not overlap polls and cleans up pending work", async () => {
         vi.useFakeTimers();
         request.mockReturnValue(new Promise(() => {}));
@@ -119,16 +106,5 @@ describe("network data provider", () => {
         unmount();
         expect(signal?.aborted).toBe(true);
         expect(vi.getTimerCount()).toBe(0);
-    });
-    it("rejects non-finite TPS readings without polluting the chart", async () => {
-        request.mockResolvedValue(snapshotResponse(networkSnapshot()));
-        const { result } = mount();
-        await waitFor(() => expect(result.current.data.isLoading).toBe(false));
-        act(() =>
-            TestEventSource.instances[0].emitRaw(
-                '{"currentTps":"not-a-number"}'
-            )
-        );
-        expect(result.current.data.samples).toEqual([]);
     });
 });

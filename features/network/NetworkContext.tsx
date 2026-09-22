@@ -1,10 +1,7 @@
 "use client";
 
 import type { NetworkApiResponseData } from "@/app/api/network/route";
-import type { TpsStreamItem } from "@/app/api/tps/stream/route";
 import { fetchNetwork } from "@/lib/fetch";
-import { useLiveStream, type StreamStatus } from "@/hooks/useLiveStream";
-import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
 import {
     createContext,
     useCallback,
@@ -16,7 +13,6 @@ import {
 } from "react";
 import { OptionsContext } from "../options/OptionsContext";
 
-export type TpsSample = { timestamp: number; tps: number };
 interface NetworkContextValue {
     networkMetrics: NetworkApiResponseData["networkMetrics"] | null;
     addressMetrics: NetworkApiResponseData["addressMetrics"] | null;
@@ -30,8 +26,6 @@ interface NetworkContextValue {
     refresh: () => void;
     error: string | null;
     updatedAt: number | null;
-    samples: TpsSample[];
-    streamStatus: StreamStatus;
 }
 
 export const NetworkContext = createContext<NetworkContextValue>({
@@ -47,8 +41,6 @@ export const NetworkContext = createContext<NetworkContextValue>({
     dataTtl: null,
     error: null,
     updatedAt: null,
-    samples: [],
-    streamStatus: "connecting",
 });
 
 export default function NetworkContextProvider({
@@ -65,21 +57,6 @@ export default function NetworkContextProvider({
     const [dataTtl, setDataTtl] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [updatedAt, setUpdatedAt] = useState<number | null>(null);
-    const [samples, setSamples] = useState<TpsSample[]>([]);
-    useOnNetworkChange(() => setSamples([]));
-    const streamStatus = useLiveStream<TpsStreamItem>(
-        "/api/tps/stream",
-        (item) => {
-            if (!Number.isFinite(item.currentTps)) return;
-            setSamples((prev) =>
-                [
-                    ...prev,
-                    { timestamp: Date.now(), tps: item.currentTps },
-                ].slice(-300)
-            );
-        }
-    );
-
     useEffect(() => {
         let cancelled = false;
         let pending = false;
@@ -138,19 +115,8 @@ export default function NetworkContextProvider({
             dataTtl,
             error,
             updatedAt,
-            samples,
-            streamStatus,
         }),
-        [
-            data,
-            isLoading,
-            dataTtl,
-            error,
-            updatedAt,
-            samples,
-            streamStatus,
-            refresh,
-        ]
+        [data, isLoading, dataTtl, error, updatedAt, refresh]
     );
     return (
         <NetworkContext.Provider value={value}>
