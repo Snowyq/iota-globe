@@ -80,54 +80,133 @@ function mountPanel() {
 }
 
 describe("worker adapter lifecycle", () => {
-    it("leaves default touch drags to page scrolling and only pans after activation", async () => {
-        const { container, rerender } = render(<Globe />);
+    it("leaves one finger to the page, turns with two, coasts on release and zooms on a double tap", async () => {
+        const { container } = render(<Globe />);
         const worker = await harness.boot();
         const canvas = container.querySelector("canvas")!;
         pointer(canvas, "pointerdown", 1, 100, 100);
-        pointer(canvas, "pointermove", 1, 100, 160);
-        expect(
-            worker.postMessage.mock.calls.filter(
-                ([message]) => message.type === "drag"
-            )
-        ).toHaveLength(0);
-        rerender(<Globe touchInteractive />);
-        pointer(canvas, "pointerdown", 1, 100, 100);
         pointer(canvas, "pointermove", 1, 120, 140);
+        expect(worker.postMessage).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: "drag" })
+        );
+        pointer(canvas, "pointerup", 1, 120, 140);
+        pointer(canvas, "pointerdown", 1, 100, 100);
+        pointer(canvas, "pointerdown", 2, 200, 100);
+        // The midpoint has to travel before the turn starts...
+        pointer(canvas, "pointermove", 1, 100, 130);
+        // ...and from there the globe follows it.
+        pointer(canvas, "pointermove", 2, 200, 130);
         expect(worker.postMessage).toHaveBeenCalledWith({
             type: "drag",
-            dx: 20,
-            dy: 40,
+            dx: 0,
+            dy: 15,
         });
-        rerender(<Globe />);
-        const count = worker.postMessage.mock.calls.length;
-        pointer(canvas, "pointermove", 1, 140, 160);
-        expect(worker.postMessage.mock.calls).toHaveLength(count);
+        pointer(canvas, "pointerup", 2, 200, 130);
+        pointer(canvas, "pointerup", 1, 100, 130);
+        expect(worker.postMessage).toHaveBeenLastCalledWith({
+            type: "release",
+        });
+        pointer(canvas, "pointerdown", 1, 200, 100);
+        pointer(canvas, "pointerup", 1, 200, 100);
+        pointer(canvas, "pointerdown", 1, 202, 101);
+        pointer(canvas, "pointerup", 1, 202, 101);
+        expect(worker.postMessage).toHaveBeenLastCalledWith(
+            expect.objectContaining({ type: "zoom", factor: 0.6 })
+        );
         expect(TestMapWorker.instances).toHaveLength(1);
     });
-    it("pinches to zoom and continues a single finger drag without jumping after the second lifts", async () => {
-        const { container } = render(<Globe touchInteractive />);
+    it("hints at two fingers when one swipes sideways, and keeps the page still under two", async () => {
+        const onHint = vi.fn();
+        const { container } = render(<Globe onHint={onHint} />);
+        await harness.boot();
+        const stage = container.querySelector(".globe-worker-stage")!;
+        const touch = (type: string, points: [number, number][]) => {
+            const event = new Event(type, { bubbles: true, cancelable: true });
+            Object.defineProperty(event, "touches", {
+                value: points.map(([clientX, clientY]) => ({
+                    clientX,
+                    clientY,
+                })),
+            });
+            act(() => void stage.dispatchEvent(event));
+            return event;
+        };
+        touch("touchstart", [[100, 100]]);
+        touch("touchmove", [[150, 104]]);
+        expect(onHint).toHaveBeenCalledWith("touch");
+        const two = touch("touchmove", [
+            [100, 100],
+            [200, 100],
+        ]);
+        expect(two.defaultPrevented).toBe(true);
+    });
+    it("leaves a plain scroll to the page and zooms with Command held", async () => {
+        const onHint = vi.fn();
+        const { container } = render(<Globe onHint={onHint} />);
+        const worker = await harness.boot();
+        const canvas = container.querySelector("canvas")!;
+        const plain = new WheelEvent("wheel", {
+            deltaY: 40,
+            bubbles: true,
+            cancelable: true,
+        });
+        act(() => void canvas.dispatchEvent(plain));
+        expect(plain.defaultPrevented).toBe(false);
+        expect(onHint).toHaveBeenCalledWith("wheel");
+        const zoom = new WheelEvent("wheel", {
+            deltaY: -40,
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+        act(() => void canvas.dispatchEvent(zoom));
+        expect(zoom.defaultPrevented).toBe(true);
+        expect(worker.postMessage).toHaveBeenLastCalledWith(
+            expect.objectContaining({ type: "zoom" })
+        );
+    });
+    it("pinches to zoom and stops turning when one of two fingers lifts", async () => {
+        const { container } = render(<Globe />);
         const worker = await harness.boot();
         const canvas = container.querySelector("canvas")!;
         pointer(canvas, "pointerdown", 1, 100, 100);
         pointer(canvas, "pointerdown", 2, 200, 100);
+        // A clear spread starts the zoom from where it is, then follows.
         pointer(canvas, "pointermove", 2, 300, 100);
+        pointer(canvas, "pointermove", 2, 400, 100);
         expect(worker.postMessage).toHaveBeenCalledWith({
             type: "view",
-            view: { altitude: 1.05 },
+            view: { altitude: 1.6 },
             duration: 0,
         });
         pointer(canvas, "pointerup", 1, 100, 100);
+        expect(worker.postMessage).toHaveBeenLastCalledWith({
+            type: "release",
+        });
         pointer(canvas, "pointermove", 2, 320, 100);
         expect(worker.postMessage).toHaveBeenLastCalledWith({
-            type: "drag",
-            dx: 20,
-            dy: 0,
+            type: "release",
         });
         pointer(canvas, "pointercancel", 2, 320, 100);
         const count = worker.postMessage.mock.calls.length;
         pointer(canvas, "pointermove", 2, 350, 150);
         expect(worker.postMessage.mock.calls).toHaveLength(count);
+    });
+    it("does not zoom on the small change of spread that comes with a turn", async () => {
+        const { container } = render(<Globe />);
+        const worker = await harness.boot();
+        const canvas = container.querySelector("canvas")!;
+        pointer(canvas, "pointerdown", 1, 100, 100);
+        pointer(canvas, "pointerdown", 2, 200, 100);
+        pointer(canvas, "pointermove", 1, 100, 130);
+        pointer(canvas, "pointermove", 2, 212, 140);
+        pointer(canvas, "pointermove", 1, 96, 150);
+        expect(worker.postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({ type: "drag" })
+        );
+        expect(worker.postMessage).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: "view" })
+        );
     });
     it("keeps mouse dragging available without enabling touch interaction", async () => {
         const { container } = render(<Globe />);
@@ -206,12 +285,10 @@ describe("worker adapter lifecycle", () => {
         fireEvent.keyDown(screen.getByLabelText(/Interactive network map/), {
             key: "+",
         });
-        expect(worker.postMessage).toHaveBeenCalledWith(
-            expect.objectContaining({
-                type: "view",
-                view: expect.objectContaining({ altitude: expect.any(Number) }),
-            })
-        );
+        expect(worker.postMessage).toHaveBeenLastCalledWith({
+            type: "zoom",
+            factor: 0.85,
+        });
     });
     it("projects accessible markers without recreating their React tree", async () => {
         const point = { lat: 0, lng: 0, iotaAddress: "0xalpha" };
@@ -263,7 +340,7 @@ describe("network map interactions", () => {
         const user = userEvent.setup();
         mountPanel();
         expect(
-            screen.getByText("Preparing your view of the network")
+            screen.getByText("Rendering the validator globe")
         ).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Zoom in" })).toBeDisabled();
         expect(
@@ -275,9 +352,12 @@ describe("network map interactions", () => {
         expect(
             screen.getByRole("button", { name: "Find validator" })
         ).toBeEnabled();
-        expect(
-            screen.queryByText("Preparing your view of the network")
-        ).not.toBeInTheDocument();
+        // The skeleton fades out over the globe, then leaves.
+        await waitFor(() =>
+            expect(
+                screen.queryByText("Rendering the validator globe")
+            ).not.toBeInTheDocument()
+        );
         await user.click(screen.getByRole("button", { name: "2D map" }));
         expect(screen.getByRole("button", { name: "2D map" })).toHaveAttribute(
             "aria-pressed",
@@ -293,37 +373,34 @@ describe("network map interactions", () => {
             expect.objectContaining({ type: "view" })
         );
     });
-    it("closes the inspector before fullscreen and restores the opener's focus", async () => {
+    it("finds a validator from the search palette and returns focus", async () => {
         const user = userEvent.setup();
         mountPanel();
         const worker = await harness.boot();
         act(() => worker.emit({ type: "ready" }));
-        await waitFor(() =>
-            expect(
-                screen.getByRole("button", { name: "Find validator" })
-            ).toBeEnabled()
-        );
-        const opener = screen.getByRole("button", {
-            name: "Expand network map",
+        const opener = await screen.findByRole("button", {
+            name: "Find validator",
         });
-        await user.click(opener);
-        expect(screen.getByRole("dialog")).toHaveFocus();
-        expect(document.body.style.overflow).toBe("hidden");
-        await user.click(
-            screen.getByRole("button", { name: "Find validator" })
-        );
-        expect(
-            screen.getByRole("complementary", { name: "Validator group" })
-        ).toBeInTheDocument();
+        await waitFor(() => expect(opener).toBeEnabled());
+        await user.keyboard("{Meta>}k{/Meta}");
+        const input = screen.getByRole("combobox", {
+            name: /Validator name/,
+        });
+        expect(input).toHaveFocus();
         await user.keyboard("{Escape}");
-        expect(
-            screen.queryByRole("complementary", { name: "Validator group" })
-        ).not.toBeInTheDocument();
-        expect(screen.getByRole("dialog")).toBeInTheDocument();
-        await user.keyboard("{Escape}");
-        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
         expect(opener).toHaveFocus();
-        expect(document.body.style.overflow).toBe("");
+        await user.click(opener);
+        await user.type(
+            screen.getByRole("combobox", { name: /Validator name/ }),
+            "warsaw"
+        );
+        expect(screen.getAllByRole("option")).toHaveLength(1);
+        await user.keyboard("{Enter}");
+        expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+        expect(
+            await screen.findByRole("complementary", { name: /Alpha/ })
+        ).toBeInTheDocument();
         expect(TestMapWorker.instances).toHaveLength(1);
     });
     it("keeps a useful fallback and can restart a failed renderer", async () => {

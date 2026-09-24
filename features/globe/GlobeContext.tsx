@@ -134,7 +134,7 @@ export default function GlobeContextProvider({
         if (!methods) return;
         methods.pointOfView(
             viewMode === "globe"
-                ? { lat: 26, lng: 8, altitude: 2.1 }
+                ? { lat: 22, lng: 8, altitude: 2.4 }
                 : { lat: 0, lng: 0, altitude: 2.1 },
             prefersReducedMotion() ? 0 : 650
         );
