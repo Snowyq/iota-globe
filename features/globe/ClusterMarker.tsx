@@ -20,6 +20,11 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
     const validator = single
         ? validators.find((v) => v.iotaAddress === cluster.validators[0])
         : null;
+    // The visible text is part of the name, so the button can be called
+    // by what it shows.
+    const shown = single
+        ? (validator?.payload.name.slice(0, 3).toUpperCase() ?? "1")
+        : String(cluster.count);
     const selected =
         cluster.validators.includes(selectedValidator?.iotaAddress ?? "") ||
         openClusterId === cluster.id;
@@ -29,7 +34,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
             className={`globe-marker ${selected ? "selected" : ""}`}
             aria-label={
                 single
-                    ? `Inspect ${validator?.payload.name ?? "validator"}`
+                    ? `Inspect ${validator?.payload.name ?? "validator"} (${shown})`
                     : `Inspect group of ${cluster.count} validators`
             }
             aria-pressed={selected}
@@ -46,9 +51,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
             }}
         >
             <span className="marker-point" />
-            {single
-                ? (validator?.payload.name.slice(0, 3).toUpperCase() ?? "1")
-                : cluster.count}
+            {shown}
         </button>
     );
 }

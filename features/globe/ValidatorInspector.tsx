@@ -1,14 +1,16 @@
 "use client";
 
 import { useContext, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUpRight, MapPin, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Link2, MapPin, X } from "lucide-react";
 import Link from "next/link";
 import { ValidatorAvatar } from "@/components/ValidatorAvatar";
+import { CopyButton } from "@/components/CopyButton";
 import { SearchField } from "@/components/SearchField";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import { useGlobeClickOutside } from "@/hooks/useGlobeClickOutside";
 import { compact } from "@/features/dashboard/DashboardPrimitives";
 import { GlobeContext } from "./GlobeContext";
+import { validatorLink } from "./useValidatorLink";
 
 export function ValidatorInspector() {
     const {
@@ -80,21 +82,33 @@ export function ValidatorInspector() {
                         <>
                             <span className="status-dot" />
                             <span>
-                                {openClusterId === "all"
-                                    ? "Validator directory"
-                                    : "Validator group"}
-                                <b>{group.length}</b>
+                                {validator
+                                    ? "Validator"
+                                    : openClusterId === "all"
+                                      ? "Validator directory"
+                                      : "Validator group"}
+                                {!validator && <b>{group.length}</b>}
                             </span>
                         </>
                     )}
                 </div>
-                <button
-                    className="icon-button"
-                    aria-label="Close validator panel"
-                    onClick={close}
-                >
-                    <X size={15} />
-                </button>
+                <div className="inspector-actions">
+                    {validator && (
+                        <CopyButton
+                            className="icon-button"
+                            value={validatorLink(validator.iotaAddress)}
+                            label="Copy link to this validator"
+                            icon={<Link2 size={15} />}
+                        />
+                    )}
+                    <button
+                        className="icon-button"
+                        aria-label="Close validator panel"
+                        onClick={close}
+                    >
+                        <X size={15} />
+                    </button>
+                </div>
             </div>
             {validator ? (
                 <>
