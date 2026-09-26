@@ -87,7 +87,7 @@ export function ValidatorPreview() {
                                 key={v.iotaAddress}
                             >
                                 <span className="validator-rank">
-                                    {String(i + 1).padStart(2, "0")}
+                                    {i + 1}
                                 </span>
                                 <span className="validator-name">
                                     <ValidatorAvatar

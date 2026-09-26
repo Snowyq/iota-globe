@@ -20,7 +20,7 @@ export const theme = {
 export const chartAxis = {
     tick: {
         fill: theme.muted,
-        fontSize: 10,
+        fontSize: 11,
         fontFamily: "var(--font-mono)",
     },
     grid: "#ffffff0d",

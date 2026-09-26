@@ -110,7 +110,7 @@ export function StakePanel() {
                         <span>100%</span>
                     </div>
                     <ol className="power-list">
-                        {sorted.slice(0, 7).map((v, i) => (
+                        {sorted.slice(0, 12).map((v, i) => (
                             <li key={v.iotaAddress}>
                                 <Link href={`/validators/${v.iotaAddress}`}>
                                     <span

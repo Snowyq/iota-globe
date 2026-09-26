@@ -1,9 +1,10 @@
 "use client";
 
 import { NetworkContext } from "@/features/network/NetworkContext";
+import { useCheckpointStream } from "@/features/network/CheckpointStream";
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { useNowTime } from "@/hooks/useNowTime";
-import { Activity, Globe2, Layers3, ShieldCheck } from "lucide-react";
+import { Activity, Globe2, Info, Layers3, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useContext } from "react";
@@ -25,6 +26,7 @@ const links = [
         icon: Activity,
     },
     { href: "/epochs", label: "Epochs", short: "Epochs", icon: Layers3 },
+    { href: "/about", label: "About", short: "About", icon: Info },
 ];
 
 const isActive = (pathname: string, href: string) =>
@@ -54,7 +56,10 @@ export function ConnectionReadout() {
           : isLoading
             ? "connecting"
             : "offline";
-    const checkpoint = networkMetrics?.currentCheckpoint;
+    const { blocks } = useCheckpointStream();
+    // The streamed head moves ~5 times a second; the snapshot is the fallback.
+    const checkpoint =
+        blocks[0]?.sequenceNumber ?? networkMetrics?.currentCheckpoint;
     return (
         <span className={`connection-readout is-${state}`} role="status">
             <span className="status-dot" aria-hidden="true" />
