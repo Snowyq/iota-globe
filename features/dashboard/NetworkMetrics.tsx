@@ -48,10 +48,11 @@ export function NetworkMetrics() {
                 }
             />
             <Metric
-                label="Staked"
+                // The unit rides in the label: a long figure such as 586.26M
+                // must never push it out of a narrow rail card.
+                label="Staked, IOTA"
                 isLoading={validatorsLoading && !networkStats}
                 value={compact(totalStake)}
-                unit="IOTA"
                 detail={
                     <>
                         Mean APY <b>{averageApy?.toFixed(2) ?? "—"}%</b>

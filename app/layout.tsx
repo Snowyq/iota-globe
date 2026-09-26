@@ -5,19 +5,43 @@ import Navigation from "@/components/Navigation";
 import { ThemeProvider } from "@/components/theme-provider";
 import GlobeContextProvider from "@/features/globe/GlobeContext";
 import NetworkContextProvider from "@/features/network/NetworkContext";
+import { CheckpointStreamProvider } from "@/features/network/CheckpointStream";
 import OptionsContextProvider from "@/features/options/OptionsContext";
 import ValidatorsContextProvider from "@/features/validators/ValidatorsContext";
 import { cn } from "@/lib/utils";
 import { AppLayout } from "@/views/AppLayout";
 import "./globals.css";
 
+// Share images need absolute URLs: the production address, or Vercel's own
+// for preview deployments.
+const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "https://iota-globe.vercel.app");
+
+const description =
+    "Explore IOTA validators, live network activity, staking and epoch analytics.";
+
 export const metadata: Metadata = {
+    metadataBase: new URL(siteUrl),
     title: {
         default: "IOTA Globe — Network Observatory",
         template: "%s | IOTA Globe",
     },
-    description:
-        "Explore IOTA validators, live network activity, staking and epoch analytics.",
+    description,
+    openGraph: {
+        type: "website",
+        siteName: "IOTA Globe",
+        title: "IOTA Globe — Network Observatory",
+        description,
+        url: "/",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "IOTA Globe — Network Observatory",
+        description,
+    },
 };
 
 export const viewport: Viewport = {
@@ -54,14 +78,16 @@ export default function RootLayout({
             <body suppressHydrationWarning>
                 <OptionsContextProvider>
                     <NetworkContextProvider>
-                        <ValidatorsContextProvider>
-                            <GlobeContextProvider>
-                                <ThemeProvider>
-                                    <Navigation />
-                                    <AppLayout>{children}</AppLayout>
-                                </ThemeProvider>
-                            </GlobeContextProvider>
-                        </ValidatorsContextProvider>
+                        <CheckpointStreamProvider>
+                            <ValidatorsContextProvider>
+                                <GlobeContextProvider>
+                                    <ThemeProvider>
+                                        <Navigation />
+                                        <AppLayout>{children}</AppLayout>
+                                    </ThemeProvider>
+                                </GlobeContextProvider>
+                            </ValidatorsContextProvider>
+                        </CheckpointStreamProvider>
                     </NetworkContextProvider>
                 </OptionsContextProvider>
             </body>

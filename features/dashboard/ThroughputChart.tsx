@@ -13,6 +13,7 @@ import {
     YAxis,
 } from "recharts";
 import { NetworkContext } from "@/features/network/NetworkContext";
+import { useThroughputSamples } from "@/features/network/CheckpointStream";
 import {
     EmptyState,
     Panel,
@@ -29,8 +30,8 @@ const timeLabel = (time: number) =>
     });
 
 export function ThroughputChart() {
-    const { samples, streamStatus, networkMetrics } =
-        useContext(NetworkContext);
+    const { networkMetrics } = useContext(NetworkContext);
+    const { samples, status: streamStatus } = useThroughputSamples();
     const [range, setRange] = useState(60);
     const latest = samples.at(-1);
     const data = latest
@@ -44,7 +45,7 @@ export function ThroughputChart() {
         <Panel className="throughput-panel">
             <PanelHeader
                 title="Throughput"
-                description="Transactions per second, sampled live"
+                description="Transactions per second of chain time, 5 s mean"
                 action={
                     <div className="chart-actions">
                         <StreamBadge status={streamStatus} />
@@ -95,7 +96,7 @@ export function ThroughputChart() {
                     >
                         <AreaChart
                             data={data}
-                            margin={{ top: 12, right: 6, left: -24, bottom: 0 }}
+                            margin={{ top: 12, right: 28, left: 0, bottom: 0 }}
                         >
                             <CartesianGrid
                                 stroke={chartAxis.grid}
@@ -112,6 +113,7 @@ export function ThroughputChart() {
                                 minTickGap={55}
                             />
                             <YAxis
+                                width={32}
                                 tick={chartAxis.tick}
                                 axisLine={false}
                                 tickLine={false}

@@ -51,7 +51,7 @@ export function BrandMark({ size = 22 }: { size?: number }) {
 export default function Logo() {
     return (
         <span className="brand-word">
-            IOTA<b>Globe</b>
+            IOTA <b>Globe</b>
         </span>
     );
 }
