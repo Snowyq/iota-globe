@@ -1,0 +1,1010 @@
+/* ==================================================================
+   About: the project's README as a page.
+   One motif runs it: the rounded square every continent on the globe
+   is drawn from. It is the bullet, the thumbnail frame, the stage
+   behind the screens, the dot that carries each checkpoint and the
+   footer's lettering.
+   ================================================================== */
+.about {
+    --m: clamp(20px, 3.2vw, 48px);
+    --dot-r: 22%;
+    --soft: #a9bbc0;
+    --f1: #0d1b1f;
+    --f2: #11252b;
+    --f3: #163039;
+    --f4: #1b3b45;
+    --display-wdth: 125;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-x: clip;
+    background: #020507;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.5;
+}
+.about h1,
+.about h2,
+.about h3 {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1;
+}
+.about p {
+    margin: 0;
+}
+.about a {
+    color: inherit;
+}
+.about :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* The motif at text size. */
+.motif-bullet {
+    display: inline-block;
+    flex: none;
+    width: 0.5em;
+    height: 0.5em;
+    margin-right: 0.55em;
+    border-radius: var(--dot-r);
+    background: currentColor;
+    vertical-align: 0.08em;
+}
+
+/* The one button: the motif's corner, filled. */
+.motif-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0 22px;
+    border-radius: 10px;
+    background: var(--accent-ink);
+    color: var(--accent) !important;
+    font-size: 17px;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+        background-color 0.2s var(--ease-out),
+        transform 0.2s var(--ease-out);
+}
+.motif-button::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: var(--dot-r);
+    background: currentColor;
+    transition: transform 0.35s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+    .motif-button:hover {
+        background: #06262e;
+    }
+    .motif-button:hover::before {
+        transform: rotate(90deg) scale(1.25);
+    }
+}
+.motif-button:active {
+    transform: translateY(1px);
+}
+/* On the dark ground of the hero the button takes the accent. */
+.motif-button.is-accent {
+    background: var(--accent);
+    color: var(--accent-ink) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+    .motif-button.is-accent:hover {
+        background: #7eecff;
+    }
+}
+.motif-button.is-small {
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 15px;
+}
+
+/* A tap leaves no grey flash on text or controls. */
+.about {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Hero: the name over a stack of folders ---- */
+.about-hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: max(640px, calc(100svh - var(--topbar-height)));
+    overflow: hidden;
+}
+.about-hero-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    padding: clamp(56px, 11vh, 110px) var(--m) 0;
+    text-align: center;
+}
+.about-hero h1 {
+    font-size: clamp(64px, 10vw, 168px);
+    font-variation-settings: "wdth" var(--display-wdth);
+    font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.ch-word {
+    display: inline-block;
+    white-space: nowrap;
+}
+.ch-mask {
+    display: inline-block;
+    overflow: hidden;
+    padding-block: 0.04em;
+    vertical-align: top;
+}
+.ch {
+    display: inline-block;
+}
+.about-hero-lede {
+    max-width: 46ch;
+    color: var(--soft);
+    font-size: 20px;
+    line-height: 1.45;
+}
+.folders {
+    position: relative;
+    flex: 1;
+    min-height: 330px;
+    margin-top: clamp(40px, 7vh, 72px);
+}
+.folder {
+    position: absolute;
+    left: 7%;
+    right: 7%;
+    top: calc(var(--i) * 64px + 40px);
+    bottom: -40px;
+    border-radius: 0 12px 0 0;
+    will-change: transform;
+}
+.folder-1 {
+    --i: 0;
+    background: var(--f1);
+}
+.folder-2 {
+    --i: 1;
+    background: var(--f2);
+}
+.folder-3 {
+    --i: 2;
+    background: var(--f3);
+}
+.folder-4 {
+    --i: 3;
+    background: var(--f4);
+}
+.folder-5 {
+    --i: 4;
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+.folder-tab {
+    position: absolute;
+    bottom: 100%;
+    left: var(--tab-x);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 22px;
+    border-radius: 12px 12px 0 0;
+    background: inherit;
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.folder-tab::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: var(--dot-r);
+    background: currentColor;
+    opacity: 0.6;
+    transition:
+        transform 0.3s var(--ease-out),
+        opacity 0.3s;
+}
+@media (hover: hover) and (pointer: fine) {
+    .folder-tab:hover::before {
+        transform: scale(1.4);
+        opacity: 1;
+    }
+}
+.folder-1 .folder-tab {
+    --tab-x: 0%;
+}
+.folder-2 .folder-tab {
+    --tab-x: 19%;
+}
+.folder-3 .folder-tab {
+    --tab-x: 39%;
+}
+.folder-4 .folder-tab {
+    --tab-x: 59%;
+}
+.folder-5 .folder-tab {
+    --tab-x: calc(100% - 150px);
+    color: var(--accent-ink);
+}
+.about-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 16px 32px;
+    margin-top: 8px;
+}
+.hero-link {
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 5px;
+    transition: text-underline-offset 0.2s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+    .hero-link:hover {
+        text-underline-offset: 8px;
+    }
+}
+
+/* ---- Intro: one statement with the things it names ---- */
+.about-intro {
+    display: flex;
+    justify-content: center;
+    padding: 22vh var(--m);
+    background: #020507;
+}
+.about-statement {
+    width: min(100%, 940px);
+    font-size: clamp(22px, 2.6vw, 36px);
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    text-align: center;
+    text-wrap: balance;
+}
+.thumb {
+    display: inline-block;
+    width: 1.3em;
+    height: 0.85em;
+    margin: 0 0.28em;
+    border-radius: 0.2em;
+    background: #071014 center / cover no-repeat;
+    vertical-align: -0.1em;
+}
+/* Each thumb is its own small crop, so the statement does not wait on a
+   full screenshot. */
+.thumb-globe {
+    width: 0.85em;
+    background-image: url("/about/thumb-globe.jpg");
+}
+.thumb-chain {
+    background-image: url("/about/thumb-chain.jpg");
+}
+.thumb-marker {
+    background-image: url("/about/thumb-marker.jpg");
+}
+
+/* ---- Features: names on the left, the screen on a square ---- */
+.about-features {
+    padding: clamp(80px, 14vh, 140px) var(--m);
+    background: var(--f1);
+}
+.features {
+    display: grid;
+    grid-template-columns: minmax(260px, 4fr) 8fr;
+    grid-template-areas: "index stage";
+    align-items: end;
+    gap: 32px;
+    min-height: min(92svh, 900px);
+}
+.features-index {
+    grid-area: index;
+    padding-bottom: 6vh;
+}
+.features-index h2,
+.features-index button {
+    font-size: clamp(26px, 2.5vw, 36px);
+    line-height: 1.15;
+}
+.features-index h2 {
+    margin-bottom: 0.3em;
+    color: var(--accent);
+}
+.features-index ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.features-index button {
+    display: flex;
+    align-items: center;
+    padding: 0.08em 0;
+    border: 0;
+    background: none;
+    color: var(--soft);
+    font-family: var(--font-sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.24s var(--ease-out);
+}
+.features-index button .motif-bullet {
+    width: 0.32em;
+    height: 0.32em;
+    color: var(--accent);
+    transform: scale(0);
+    transition: transform 0.3s var(--ease-out);
+}
+.features-index button[aria-pressed="true"] {
+    color: var(--text);
+}
+@media (hover: hover) and (pointer: fine) {
+    .features-index button:hover {
+        color: var(--text);
+    }
+}
+.features-index button[aria-pressed="true"] .motif-bullet {
+    transform: none;
+}
+.features-stage {
+    --sq: min(72vh, 78%);
+    /* The screen's width, and so its height, as a length the fact can
+       be placed from. */
+    --frame-w: min(84cqw, 72vh * 1.08);
+    grid-area: stage;
+    position: relative;
+    height: min(92svh, 900px);
+    container-type: inline-size;
+}
+.features-visual {
+    position: absolute;
+    inset: 0;
+}
+/* The square stands on the stage floor; the screen breaks its top edge
+   and the fact sits on what shows below. */
+.features-square {
+    position: absolute;
+    left: 50%;
+    bottom: 4%;
+    width: var(--sq);
+    aspect-ratio: 1;
+    border-radius: var(--dot-r);
+    background: var(--f3);
+    transform: translateX(-50%);
+}
+.features-frame {
+    position: absolute;
+    left: 50%;
+    top: 4%;
+    width: var(--frame-w);
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #020507;
+    transform: translateX(-50%);
+}
+.features-frame img,
+.features-frame video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.24s linear;
+}
+.features-frame video.is-square {
+    object-fit: contain;
+    background: #020507;
+}
+.features-frame .is-active {
+    opacity: 1;
+}
+/* The fact reads as the screen's caption: just under it, on the square. */
+.features-fact {
+    position: absolute;
+    left: calc(50% - var(--sq) / 2 + 36px);
+    top: calc(4% + var(--frame-w) * 0.625 + 36px);
+    width: min(32ch, calc(var(--sq) - 72px));
+    margin: 0;
+    color: var(--text);
+    font-size: 22px;
+    line-height: 1.4;
+}
+
+/* ---- Data flow: the progress bar as the diagram ---- */
+.about-flow {
+    padding: clamp(96px, 16vh, 160px) var(--m);
+    background: var(--f2);
+}
+.about-flow h2 {
+    margin-bottom: 64px;
+    font-size: clamp(44px, 6.4vw, 92px);
+    font-variation-settings: "wdth" var(--display-wdth);
+    font-weight: 800;
+    line-height: 0.95;
+}
+.flow-bar {
+    position: relative;
+    display: flex;
+    gap: 6px;
+}
+.flow-stage {
+    flex-basis: 0;
+    min-width: 0;
+}
+.flow-segment {
+    height: 22vh;
+    min-height: 150px;
+    padding: 20px;
+    border-radius: 10px;
+}
+.about .flow-segment h3 {
+    font-size: 28px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.flow-stage:nth-child(1) .flow-segment {
+    background: #133e48;
+    color: var(--text);
+}
+.flow-stage:nth-child(2) .flow-segment {
+    background: #1d6070;
+    color: var(--text);
+}
+.flow-stage:nth-child(3) .flow-segment {
+    background: #3fb8cc;
+    color: var(--accent-ink);
+}
+.flow-stage:nth-child(4) .flow-segment {
+    background: var(--hot);
+    color: var(--accent-ink);
+}
+.flow-stage p {
+    max-width: 24ch;
+    margin-top: 18px;
+    padding-right: 12px;
+    font-size: 17px;
+}
+.flow-lane {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: max(22vh, 150px);
+    pointer-events: none;
+}
+.flow-dot {
+    position: absolute;
+    left: 0;
+    bottom: 18px;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--dot-r);
+    background: var(--text);
+}
+.flow-live {
+    max-width: 72ch;
+    margin-top: 72px !important;
+    color: var(--soft);
+    font-size: 17px;
+}
+.flow-live .motif-bullet {
+    color: var(--hot);
+    animation: flow-beat 1s steps(2, jump-none) infinite;
+}
+.flow-live b {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+@keyframes flow-beat {
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* ---- Performance: how it stays light, in words ---- */
+.about-performance {
+    display: grid;
+    grid-template-columns: 5fr 7fr;
+    align-items: start;
+    gap: 48px;
+    padding: clamp(96px, 16vh, 160px) var(--m);
+    background: var(--f3);
+}
+.about-performance-head {
+    position: sticky;
+    top: calc(var(--topbar-height) + 48px);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+.about-performance h2 {
+    font-size: clamp(40px, 4.4vw, 72px);
+    font-variation-settings: "wdth" var(--display-wdth);
+    font-weight: 800;
+    line-height: 0.95;
+}
+.about-performance-head p {
+    max-width: 34ch;
+    color: var(--soft);
+    font-size: 20px;
+}
+.practices {
+    display: grid;
+    gap: clamp(40px, 6vh, 64px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.about .practice h3 {
+    font-size: 36px;
+    line-height: 1.1;
+    transition: color 0.25s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 1081px) {
+    .practice:hover h3 {
+        color: var(--accent);
+    }
+}
+.practice p {
+    max-width: 52ch;
+    margin-top: 14px;
+    font-size: 17px;
+}
+
+/* ---- Decisions: one table at one size ---- */
+.about-decisions {
+    padding: clamp(64px, 10vh, 112px) var(--m) clamp(96px, 14vh, 140px);
+    background: var(--f4);
+}
+.decisions {
+    font-size: clamp(17px, 1.4vw, 20px);
+    line-height: 1.5;
+}
+.decision-row {
+    display: grid;
+    grid-template-columns: 29% 30% 19% 22%;
+}
+.decision-row > span {
+    padding-right: 1em;
+}
+.decision-row > span:last-child {
+    padding-right: 0;
+    color: var(--soft);
+    text-align: right;
+}
+.decision-row.is-head {
+    color: var(--soft);
+}
+.decision-row:not(.is-head) {
+    transition: color 0.2s;
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 1081px) {
+    .decision-row:not(.is-head):hover {
+        color: var(--accent);
+    }
+}
+.decision-part h3 {
+    position: sticky;
+    top: var(--topbar-height);
+    z-index: 1;
+    margin: 0;
+    padding: 72px 0 20px;
+    background: var(--f4);
+    color: var(--accent);
+    font-size: inherit;
+    font-variation-settings: "wdth" 100;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.5;
+}
+
+/* ---- Footer: the name built from the globe's dots ---- */
+.about-footer {
+    padding: clamp(64px, 10vh, 112px) var(--m) 40px;
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+.dot-wordmark {
+    display: flex;
+    justify-content: space-between;
+    gap: 2.4vw;
+}
+.dot-word {
+    display: flex;
+    gap: 1.2vw;
+}
+.dot-word:first-child {
+    flex: 4;
+}
+.dot-word:last-child {
+    flex: 5;
+}
+.dot-letter {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.3vw;
+}
+.dot-letter i {
+    aspect-ratio: 1;
+    border-radius: var(--dot-r);
+}
+.dot-letter i.on {
+    background: var(--accent-ink);
+}
+.about-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) 1.6fr;
+    gap: 32px;
+    margin-top: 56px;
+}
+/* A column never grows to its widest line; the commands scroll instead. */
+.about-footer-grid > * {
+    min-width: 0;
+}
+.about-footer h3 {
+    margin-bottom: 14px;
+    font-size: 15px;
+    font-variation-settings: "wdth" 100;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+.about-footer ul {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 15px;
+}
+.about-footer ul a {
+    text-decoration: none;
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px
+        no-repeat;
+    transition: background-size 0.3s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+    .about-footer ul a:hover {
+        background-size: 100% 1px;
+    }
+}
+.about-run pre {
+    margin: 0 0 12px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    border-radius: 10px;
+    background: var(--accent-ink);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.7;
+}
+.about-run p {
+    font-size: 15px;
+}
+.about-run code {
+    font-family: var(--font-mono);
+    font-size: 14px;
+}
+.about-footer-last {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 56px;
+    font-size: 15px;
+}
+
+/* The page closes on the footer's colour, with no band below it. */
+.main-content:has(> .about) {
+    padding-bottom: 0;
+}
+
+/* ---- Tablet ---- */
+@media (max-width: 1080px) {
+    .features {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 28px;
+        min-height: 0;
+    }
+    .features-index {
+        display: contents;
+    }
+    .features-index h2 {
+        order: -1;
+        margin: 0;
+    }
+    .features-stage {
+        height: auto;
+    }
+    .features-visual {
+        position: relative;
+        inset: auto;
+        aspect-ratio: 1 / 0.92;
+    }
+    .features-square {
+        top: auto;
+        bottom: 0;
+        width: 78%;
+        transform: translateX(-50%);
+    }
+    .features-frame {
+        top: 0;
+        width: 100%;
+        transform: translateX(-50%);
+    }
+    .features-index {
+        padding-bottom: 0;
+    }
+    .features-index ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 28px;
+    }
+    .features-stage {
+        --frame-w: 100cqw;
+    }
+    .features-fact {
+        top: calc(var(--frame-w) * 0.625 + 28px);
+        left: calc(11% + 28px);
+        right: calc(11% + 28px);
+        width: auto;
+        font-size: 20px;
+    }
+    .features-square {
+        bottom: 0;
+    }
+    .about-performance {
+        grid-template-columns: 1fr;
+    }
+    .about-performance-head {
+        position: static;
+    }
+    .decision-row {
+        grid-template-columns: 1fr 1fr;
+        row-gap: 2px;
+        padding: 10px 0;
+    }
+    .decision-row > span:nth-child(n + 3) {
+        color: var(--soft);
+        font-size: 15px;
+    }
+    .decision-row > span:last-child {
+        text-align: right;
+    }
+    .decision-row.is-head {
+        display: none;
+    }
+    .decision-part h3 {
+        padding-top: 48px;
+    }
+    .about-footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Wherever the tab bar is fixed to the foot of the screen, the footer
+   ends above it. */
+@media (max-width: 760px) {
+    .about-footer {
+        padding-bottom: calc(
+            40px + var(--tabbar-height) + var(--safe-area-bottom)
+        );
+    }
+}
+
+/* ---- Phone ---- */
+@media (max-width: 640px) {
+    .about {
+        font-size: 16px;
+    }
+    /* The whole stack, open folder and button included, fits between
+       the top bar and the tab bar of a phone. */
+    .about-hero {
+        min-height: 0;
+    }
+    .about-hero-head {
+        gap: 16px;
+        padding-top: 28px;
+    }
+    .about-hero h1 {
+        font-size: 15vw;
+        white-space: normal;
+    }
+    .about-hero-lede {
+        font-size: 16px;
+        line-height: 1.4;
+    }
+    .folders {
+        flex: none;
+        height: 200px;
+        min-height: 0;
+        margin-top: 20px;
+    }
+    .folder {
+        left: 0;
+        right: 0;
+        top: calc(var(--i) * 32px + 30px);
+        border-radius: 0;
+    }
+    .folder-tab {
+        height: 30px;
+        padding: 0 14px;
+        font-size: 15px;
+    }
+    .folder-1 .folder-tab {
+        --tab-x: 16px;
+    }
+    .folder-2 .folder-tab {
+        --tab-x: calc(50% - 60px);
+    }
+    .folder-3 .folder-tab {
+        --tab-x: calc(100% - 156px);
+    }
+    .folder-4 .folder-tab {
+        --tab-x: 16px;
+    }
+    .folder-5 .folder-tab {
+        --tab-x: calc(100% - 100px);
+    }
+    .about-hero-actions {
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+        margin-top: 4px;
+    }
+    .about-hero-actions .motif-button {
+        width: 100%;
+        justify-content: center;
+    }
+    .about-intro {
+        padding-block: 96px;
+    }
+    .about-statement {
+        font-size: 22px;
+        text-align: left;
+    }
+    .about-features {
+        padding-block: 56px 72px;
+    }
+    .features {
+        gap: 20px;
+    }
+    .features-index h2 {
+        font-size: 30px;
+    }
+    /* One name per line, the current one marked. */
+    .features-index ul {
+        display: grid;
+        gap: 2px;
+    }
+    .features-index button {
+        gap: 10px;
+        width: 100%;
+        min-height: 40px;
+        font-size: 22px;
+    }
+    .features-index button .motif-bullet {
+        flex: none;
+    }
+    /* The fact sits on the square below the screen, as on a wide one. */
+    .features-stage {
+        position: relative;
+    }
+    .features-visual {
+        aspect-ratio: 1 / 1.02;
+    }
+    .features-square {
+        width: 88%;
+    }
+    .features-fact {
+        top: calc(var(--frame-w) * 0.625 + 18px);
+        left: calc(6% + 18px);
+        right: calc(6% + 18px);
+        font-size: 16px;
+        line-height: 1.45;
+    }
+    .about-flow h2 {
+        font-size: 11vw;
+    }
+    .flow-bar {
+        flex-direction: column;
+    }
+    .flow-stage {
+        flex-basis: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+    .flow-segment {
+        height: auto;
+        min-height: 72px;
+    }
+    .about .flow-segment h3 {
+        font-size: 22px;
+    }
+    .flow-stage:nth-child(4) .flow-segment {
+        min-height: 200px;
+    }
+    .flow-stage p {
+        max-width: none;
+        margin: 10px 0 18px;
+        font-size: 16px;
+    }
+    .flow-lane {
+        display: none;
+    }
+    .flow-live {
+        margin-top: 32px !important;
+        font-size: 15px;
+    }
+    .about .practice h3 {
+        font-size: 28px;
+    }
+    .practice p {
+        font-size: 16px;
+    }
+    .decision-row {
+        grid-template-columns: 1fr;
+    }
+    .decision-row > span:last-child {
+        text-align: left;
+    }
+    .dot-wordmark {
+        flex-direction: column;
+        gap: 3vw;
+    }
+    .dot-word {
+        gap: 2.2vw;
+    }
+    .dot-word:first-child {
+        width: 80%;
+    }
+    .dot-letter {
+        gap: 0.6vw;
+    }
+    .about-footer-grid {
+        gap: 32px 20px;
+    }
+    .about-run {
+        grid-column: 1 / -1;
+    }
+    .about-run pre,
+    .about-run code {
+        font-size: 13px;
+    }
+    .about-footer-last {
+        flex-wrap: wrap;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flow-live .motif-bullet {
+        animation: none;
+    }
+}
