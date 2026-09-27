@@ -1,0 +1,1 @@
+IOTA Globe, how it is built: the validator globe with a one-line summary of the architecture
