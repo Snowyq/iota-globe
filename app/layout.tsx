@@ -12,8 +12,7 @@ import { cn } from "@/lib/utils";
 import { AppLayout } from "@/views/AppLayout";
 import "./globals.css";
 
-// Share images need absolute URLs: the production address, or Vercel's own
-// for preview deployments.
+// OG images need absolute URLs; previews fall back to the Vercel host.
 const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -52,7 +51,7 @@ export const viewport: Viewport = {
     colorScheme: "dark",
 };
 
-// Archivo carries a width axis: normal width for text, expanded for display.
+// Width axis: normal for text, expanded for display type.
 const fontSans = Archivo({
     subsets: ["latin"],
     axes: ["wdth"],

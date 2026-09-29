@@ -5,10 +5,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { SearchField } from "@/components/SearchField";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import ValidatorsTable from "@/features/validators/ValidatorsTable";
-import { WifiOff } from "lucide-react";
+import { meanApy, totalStake } from "@/features/validators/stats";
 import { useContext, useState } from "react";
 import {
     EmptyState,
+    ErrorBanner,
     Metric,
     Panel,
     PanelHeader,
@@ -25,13 +26,8 @@ export default function ValidatorsPage() {
     const committeeCount = validators.filter((v) => v.isCommitteeMember).length;
     const activeCount = validators.filter((v) => !v.isCommitteeMember).length;
     const atRiskCount = validators.filter((v) => v.isAtRisk).length;
-    const total = validators.reduce((s, v) => s + v.stats.stakeIOTA, 0);
-    const apys = validators.flatMap((v) =>
-        v.stats.apyPercent == null ? [] : [v.stats.apyPercent]
-    );
-    const averageApy = apys.length
-        ? apys.reduce((a, b) => a + b, 0) / apys.length
-        : null;
+    const total = totalStake(validators);
+    const averageApy = meanApy(validators);
     const countries = new Map<string, number>();
     validators.forEach((v) => {
         if (v.geo)
@@ -68,7 +64,7 @@ export default function ValidatorsPage() {
             count: atRiskCount,
         },
     ];
-    // One cell per validator: the committee first, by power, then the rest.
+    // Committee first, then by voting power.
     const seats = [...validators].sort(
         (a, b) =>
             Number(b.isCommitteeMember) - Number(a.isCommitteeMember) ||
@@ -84,17 +80,9 @@ export default function ValidatorsPage() {
                 description="Every operator in the active set: stake, yield, commission and where their nodes answer from."
             />
             {error && (
-                <div className="error-banner" role="status">
-                    <WifiOff size={16} />
-                    <span>{error}</span>
-                    <button
-                        className="subtle-button ml-auto"
-                        disabled={isLoading}
-                        onClick={refresh}
-                    >
-                        {isLoading ? "Retrying…" : "Retry"}
-                    </button>
-                </div>
+                <ErrorBanner onRetry={refresh} retrying={isLoading}>
+                    {error}
+                </ErrorBanner>
             )}
             <div className="page-summary">
                 <Metric

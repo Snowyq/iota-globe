@@ -1,5 +1,4 @@
-// The name set in the same rounded-square dots the globe's continents are
-// drawn from: a 5 × 7 matrix per letter.
+// 5x7 dot-matrix glyphs, same dot style as the globe.
 const GLYPHS: Record<string, string[]> = {
     I: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
     O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],

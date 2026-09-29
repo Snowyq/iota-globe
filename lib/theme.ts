@@ -1,6 +1,5 @@
-// Colour values for code that cannot read CSS custom properties
-// (Recharts props, the Three.js worker, inline SVG). Keep in sync with
-// the tokens at the top of app/globals.css.
+// For code that can't read CSS vars (Recharts, the globe worker).
+// Keep in sync with the tokens in app/globals.css.
 export const theme = {
     ground: "#0b0f11",
     panel: "#070a0c",

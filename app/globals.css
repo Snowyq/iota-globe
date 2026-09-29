@@ -6,15 +6,9 @@
     --breakpoint-xs: 25rem; /* 400px */
 }
 
-@import "../styles/section.css";
-@import "../styles/typography.css";
 @custom-variant dark (&:is(.dark *));
 
-/* ------------------------------------------------------------------
-   IOTA Globe — ledger terminal
-   One ground, panels sunk below it, one signal hue for live data and
-   selection, one ignition hue for the moment a checkpoint lands.
-   ------------------------------------------------------------------ */
+/* Design tokens */
 :root,
 .dark {
     color-scheme: dark;
@@ -26,7 +20,6 @@
     --line: #1b252b;
     --line-strong: #2b3940;
     --rule: #131b20;
-    --tick: #46606a;
 
     /* Ink */
     --text: #e6f0f1;
@@ -193,7 +186,6 @@ code,
 /* Type roles */
 .display,
 .page-heading h1,
-.overview-heading h1,
 .detail-hero h1,
 .brand-word {
     font-family: var(--font-sans);
@@ -356,7 +348,7 @@ code,
     gap: var(--gap);
 }
 
-/* Footer: a colophon */
+/* Footer */
 .workspace-footer {
     border-top: 1px solid var(--line);
     background: var(--ground);
@@ -389,8 +381,7 @@ code,
 }
 
 /* ---------- Page headings ---------- */
-.page-heading,
-.overview-heading {
+.page-heading {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -401,8 +392,7 @@ code,
 .page-heading-nearby {
     justify-content: flex-start;
 }
-.page-heading h1,
-.overview-heading h1 {
+.page-heading h1 {
     font-size: clamp(28px, 3.2vw, 44px);
     color: var(--text);
 }
@@ -415,14 +405,7 @@ code,
 .page-heading-action {
     flex-shrink: 0;
 }
-.overview-finding {
-    max-width: 58ch;
-    color: var(--muted);
-    font-size: 14.5px;
-    line-height: 1.6;
-    text-align: right;
-}
-.overview-finding b,
+
 .metric-detail b,
 .nakamoto b,
 .stake-outlook b {
@@ -602,7 +585,7 @@ code,
 .filter-tabs button:hover {
     color: var(--text);
 }
-/* The one selection mark: a 1px signal line exactly as wide as the label. */
+/* Selection underline, as wide as the label. */
 .segmented button[aria-pressed="true"],
 .map-mode-switch button[aria-pressed="true"],
 .live-tabs button[aria-pressed="true"],
@@ -773,7 +756,7 @@ code,
     overflow: hidden;
     overflow-anchor: none;
     outline-offset: 4px;
-    /* The chain continues past the frame. */
+    /* Chain continues past the frame. */
     mask-image: linear-gradient(90deg, #000 85%, transparent);
 }
 .chain-block {
@@ -788,7 +771,7 @@ code,
     border: 1px solid var(--line-strong);
     background: #0d1418;
 }
-/* Fill level: the block's transactions against the busiest one shown. */
+/* Fill: tx count relative to the busiest visible block. */
 .chain-block::before {
     content: "";
     position: absolute;
@@ -799,7 +782,7 @@ code,
     background: var(--accent-soft);
     border-top: 1px solid #39e1ff59;
 }
-/* The link to the previous block. */
+/* Link to the previous block. */
 .chain-block::after {
     content: "";
     position: absolute;
@@ -854,16 +837,11 @@ code,
 }
 
 /* ---------- Overview grids ---------- */
-.dashboard-grid,
-.analytics-grid,
 .ledger-grid {
     display: grid;
     grid-template-columns: minmax(0, 2.2fr) minmax(330px, 1fr);
     gap: var(--gap);
     align-items: stretch;
-}
-.dashboard-grid {
-    --network-map-height: 540px;
 }
 
 /* ---------- Validator map ---------- */
@@ -901,17 +879,13 @@ code,
 .globe-slot .globe-panel.has-inspector .globe-visual {
     left: calc(var(--inspector-width) + 28px);
 }
-.globe-grid {
-    display: none;
-}
+
 .globe-renderer,
 .globe-worker-stage {
     position: absolute;
     inset: 0;
 }
-/* One finger pans the page in any direction; the browser keeps no pinch
-   or double-tap zoom here, so two fingers reach the globe. Set on the
-   stage so a touch that lands on a marker behaves the same. */
+/* One finger scrolls the page; two fingers reach the globe. */
 .globe-worker-stage {
     touch-action: pan-x pan-y;
 }
@@ -1036,7 +1010,7 @@ code,
 .globe-loading.is-leaving {
     opacity: 0;
 }
-/* The same box the worker frames the planet in. */
+/* Same box the worker frames the planet in. */
 .globe-loading-frame {
     position: absolute;
     top: var(--globe-inset-top, 0px);
@@ -1047,7 +1021,7 @@ code,
     place-items: center;
     container-type: size;
 }
-/* At the opening altitude the disc spans 0.8 of the frame's shorter side. */
+/* Disc spans 0.8 of the shorter side at the start altitude. */
 .globe-loading-planet {
     --planet: calc(0.8 * min(100cqw, 100cqh));
     position: relative;
@@ -1060,8 +1034,7 @@ code,
         inset 0 0 0 1px #2a6d7b,
         inset 0 0 calc(var(--planet) * 0.09) #0f4a58;
 }
-/* Shading over the dots so the disc reads as a sphere, like the globe's
-   own limb darkening. */
+/* Limb darkening over the dots. */
 .globe-loading-planet::after {
     content: "";
     position: absolute;
@@ -1090,17 +1063,12 @@ code,
         transform: translateX(-50%);
     }
 }
-/* The flat map fills the canvas; its dots stay in the band the map shows. */
+/* Flat map fills the canvas. */
 .globe-loading-map {
     position: absolute;
     inset: 0;
     overflow: hidden;
-    mask-image: linear-gradient(
-        transparent,
-        #000 18%,
-        #000 82%,
-        transparent
-    );
+    mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
 }
 .globe-loading.is-map .globe-loading-frame {
     inset: 0;
@@ -1138,7 +1106,7 @@ code,
     pointer-events: auto;
 }
 
-/* Inspector: the one thing on the map that floats, so it may cast a shadow. */
+/* Inspector floats, so it gets a shadow. */
 .validator-inspector {
     position: absolute;
     z-index: 5;
@@ -1337,7 +1305,7 @@ code,
     font-size: 12.5px;
     text-align: center;
 }
-/* A filter line under the heading, not a form field. */
+/* Inline filter under the heading. */
 .inspector-search.search-control {
     flex: none;
     width: auto;
@@ -1638,43 +1606,12 @@ code,
     background: var(--accent);
 }
 
-/* ---------- Activity feed ---------- */
-.live-panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
 .live-tabs {
     margin: 12px 18px 0;
     border-bottom: 1px solid var(--line);
 }
 .live-tabs button {
     padding: 8px 0 9px;
-}
-.live-feed {
-    position: relative;
-    flex: 1;
-    min-height: 0;
-}
-
-.live-jump {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 32px;
-    padding: 0 12px;
-    transform: translateX(-50%);
-    border: 1px solid var(--accent);
-    background: var(--raised);
-    color: var(--accent);
-    font-family: var(--font-sans);
-    font-size: 12px;
-    white-space: nowrap;
-    box-shadow: 0 6px 18px #000a;
 }
 
 /* ---------- Validator ranking ---------- */
@@ -1687,10 +1624,9 @@ code,
 }
 .validator-preview-row {
     display: grid;
-    grid-template-columns: 26px minmax(0, 1.4fr) minmax(
-            60px,
-            1fr
-        ) 112px 92px 14px;
+    grid-template-columns:
+        26px minmax(0, 1.4fr) minmax(60px, 1fr)
+        112px 92px 14px;
     align-items: center;
     gap: 16px;
     height: 56px;
@@ -2079,7 +2015,7 @@ code,
     color: var(--text);
     font-weight: 500;
 }
-/* The set as seats: one cell per validator, read left to right. */
+/* One cell per validator. */
 .participation-seats {
     display: flex;
     gap: 2px;
@@ -2404,7 +2340,7 @@ code,
     display: inline-block;
     flex-shrink: 0;
     height: 10px;
-    /* A flat bar at the value's size; it breathes rather than shimmers. */
+    /* Flat skeleton bar with a slow pulse. */
     background: #141c21;
     animation: skeleton-breathe 1.6s ease-in-out infinite alternate;
 }
@@ -2486,51 +2422,8 @@ code,
     border: 1px solid var(--line-strong);
     background: var(--panel);
 }
-.activity-loading {
-    height: 100%;
-    padding-top: 14px;
-}
-.activity-loading .loading-caption {
-    justify-content: flex-start;
-    padding: 13px 0;
-}
-.activity-skeleton-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-.activity-skeleton-rows > div {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.activity-skeleton-rows > div > div {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-}
-.skeleton-event-icon {
-    width: 4px;
-    height: 26px;
-}
-.skeleton-event-id {
-    width: 110px;
-}
-.skeleton-event-meta {
-    width: 65px;
-    height: 6px;
-}
-.skeleton-event-time {
-    width: 30px;
-    margin-left: auto;
-}
 
 /* ---------- Large screens ---------- */
-@media (min-width: 1700px) {
-    .dashboard-grid {
-        --network-map-height: 580px;
-    }
-}
 
 /* ---------- Laptop ---------- */
 @media (max-width: 1280px) {
@@ -2552,10 +2445,9 @@ code,
         font-size: 32px;
     }
     .validator-preview-row {
-        grid-template-columns: 26px minmax(0, 1.4fr) minmax(
-                40px,
-                0.6fr
-            ) 104px 84px 14px;
+        grid-template-columns:
+            26px minmax(0, 1.4fr) minmax(40px, 0.6fr)
+            104px 84px 14px;
     }
 }
 
@@ -2564,8 +2456,6 @@ code,
     .connection-checkpoint {
         display: none;
     }
-    .dashboard-grid,
-    .analytics-grid,
     .ledger-grid {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -2599,13 +2489,6 @@ code,
     }
     .economics-grid > div:nth-child(n + 3) {
         border-top: 1px solid var(--line);
-    }
-    .overview-heading {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .overview-finding {
-        text-align: left;
     }
 }
 
@@ -2692,19 +2575,16 @@ code,
     .colophon a {
         margin-left: 0;
     }
-    .page-heading,
-    .overview-heading {
+    .page-heading {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
         padding-bottom: 16px;
     }
-    .page-heading h1,
-    .overview-heading h1 {
+    .page-heading h1 {
         font-size: 28px;
     }
-    .page-heading p,
-    .overview-finding {
+    .page-heading p {
         margin-top: 0;
         font-size: 13.5px;
     }
@@ -2762,9 +2642,6 @@ code,
         width: 14px;
     }
 
-    .dashboard-grid {
-        --network-map-height: 440px;
-    }
     .globe-toolbar {
         margin: 8px 14px 0;
     }
@@ -2858,9 +2735,6 @@ code,
     .live-tabs {
         margin: 10px 14px 0;
     }
-    .live-jump {
-        min-height: 44px;
-    }
 
     .validator-preview-body {
         padding: 4px 14px;
@@ -2917,7 +2791,7 @@ code,
         overflow-x: auto;
         scrollbar-width: none;
     }
-    /* Short names, so all four filters fit a phone without scrolling. */
+    /* Short labels so all four filters fit on a phone. */
     .filter-tabs .tab-full {
         position: absolute;
         width: 1px;
@@ -2964,7 +2838,7 @@ code,
         color: var(--accent);
     }
 
-    /* Tables become stacked records: identity first, figures labelled below. */
+    /* Tables stack into records on mobile. */
     .stack-table thead {
         position: absolute;
         width: 1px;
@@ -3079,7 +2953,7 @@ code,
     }
 }
 
-/* Touch: targets of 44px and form text that does not trigger iOS zoom. */
+/* Touch: 44px targets, 16px inputs to avoid iOS zoom. */
 @media (max-width: 767px), (pointer: coarse) {
     :root :is(input, textarea, select) {
         font-size: max(16px, 1rem);
@@ -3110,12 +2984,7 @@ code,
     }
 }
 
-/* ==================================================================
-   Observatory stage
-   The overview is one screen: the planet in deep space at the centre,
-   instruments docked around it on smoked glass. Everything that moves
-   is fed by the checkpoint stream.
-   ================================================================== */
+/* ---------- Observatory stage ---------- */
 .main-content.is-stage {
     max-width: none;
     padding: 0 0 48px;
@@ -3157,13 +3026,13 @@ code,
     --foot-h: 112px;
     --hud-top: var(--pad);
     --hud-bottom: calc(var(--pad) + var(--foot-h) + var(--hud-gap));
-    /* The whole overview fits the screen it opens on. */
+    /* Overview fits the viewport. */
     --stage-h: max(
         600px,
         calc(100svh - var(--topbar-height) - var(--safe-area-top))
     );
     --glass: #070c0f;
-    /* The planet is centred in the space above the chain, not the stage. */
+    /* Centre the planet above the chain strip. */
     --globe-h: calc(
         var(--stage-h) - var(--foot-h) - var(--pad) - var(--hud-gap)
     );
@@ -3173,7 +3042,7 @@ code,
     max-height: 1180px;
     overflow: hidden;
     border-bottom: 1px solid var(--line);
-    /* Space is flat black; the planet and its atmosphere carry the light. */
+
     background: #020507;
 }
 /* ---- The globe layer fills the stage ---- */
@@ -3191,9 +3060,8 @@ code,
 .observatory .globe-panel::before {
     display: none;
 }
-/* The canvas runs the full stage, under the panels, so the planet's limb
-   is covered rather than cut. The worker frames the planet in the area the
-   instruments leave free (the same box as .stage-center). */
+/* Canvas spans the stage under the panels; the worker frames
+   the planet inside .stage-center. */
 .observatory .globe-visual,
 .observatory .globe-slot .globe-panel.has-inspector .globe-visual {
     inset: 0;
@@ -3203,19 +3071,31 @@ code,
     --globe-inset-left: calc(var(--pad) + var(--rail-l) + var(--hud-gap));
     --globe-inset-right: calc(var(--pad) + var(--rail-r) + var(--hud-gap));
 }
-/* On the stage the caption sits in the planet's middle, where the HUD
-   never covers it. */
+/* Caption in the middle of the planet, clear of the HUD. */
 .observatory .globe-loading-caption {
-    top: calc(var(--globe-inset-top) + (100% - var(--globe-inset-top) - var(--globe-inset-bottom)) / 2);
+    top: calc(
+        var(--globe-inset-top) +
+            (100% - var(--globe-inset-top) - var(--globe-inset-bottom)) / 2
+    );
     bottom: auto;
-    left: calc(var(--globe-inset-left) + (100% - var(--globe-inset-left) - var(--globe-inset-right)) / 2);
+    left: calc(
+        var(--globe-inset-left) +
+            (100% - var(--globe-inset-left) - var(--globe-inset-right)) / 2
+    );
     background: var(--glass);
     transform: translate(-50%, -50%);
 }
 .observatory .globe-loading-retry {
-    top: calc(var(--globe-inset-top) + (100% - var(--globe-inset-top) - var(--globe-inset-bottom)) / 2 + 52px);
+    top: calc(
+        var(--globe-inset-top) +
+            (100% - var(--globe-inset-top) - var(--globe-inset-bottom)) / 2 +
+            52px
+    );
     bottom: auto;
-    left: calc(var(--globe-inset-left) + (100% - var(--globe-inset-left) - var(--globe-inset-right)) / 2);
+    left: calc(
+        var(--globe-inset-left) +
+            (100% - var(--globe-inset-left) - var(--globe-inset-right)) / 2
+    );
 }
 .observatory .globe-marker {
     background: #04121acc;
@@ -3227,8 +3107,7 @@ code,
     border-color: var(--accent);
 }
 
-/* The area the instruments leave free for the planet, one gap away
-   from every rail and from the chain below. */
+/* Free area between the rails and the chain. */
 .stage-center {
     position: absolute;
     top: var(--hud-top);
@@ -3241,7 +3120,7 @@ code,
     pointer-events: auto;
 }
 
-/* Top bar: projection and search, nothing else. */
+/* Projection switch and search. */
 .observatory .globe-toolbar {
     position: absolute;
     top: 0;
@@ -3302,7 +3181,7 @@ code,
     color: var(--muted);
 }
 
-/* Readouts in the bottom corners of the free area. */
+/* Bottom-corner readouts. */
 .map-readout {
     position: absolute;
     bottom: 0;
@@ -3388,7 +3267,7 @@ code,
     border-color: var(--line-strong);
 }
 
-/* Short-lived gesture advice in the middle of the planet. */
+/* Gesture hint. */
 .map-gesture-hint {
     position: absolute;
     top: calc(var(--globe-h) / 2 - var(--hud-top));
@@ -3557,7 +3436,7 @@ code,
 .validator-search-foot span:last-child {
     margin-left: auto;
 }
-/* Keyboard hints mean nothing under a finger. */
+/* No keyboard hints on touch. */
 @media (pointer: coarse), (max-width: 760px) {
     .map-search-button kbd,
     .validator-search-field kbd,
@@ -3582,8 +3461,7 @@ code,
     padding: var(--pad);
     pointer-events: none;
 }
-/* The stage has no visible title; the heading is for screen readers and
-   the head only surfaces a connection problem. */
+/* Title is sr-only; the head only shows connection errors. */
 .hud-head {
     position: absolute;
     top: var(--pad);
@@ -3621,7 +3499,7 @@ code,
     pointer-events: none;
 }
 
-/* Smoked glass for every instrument on the stage. */
+/* Glass panels on the stage. */
 .hud .panel,
 .hud .chain-strip,
 .hud .epoch-banner {
@@ -3645,7 +3523,7 @@ code,
     letter-spacing: 0;
     text-transform: none;
 }
-/* A narrow rail keeps the heading whole and the link as its arrow. */
+/* Narrow rail: keep the heading, shrink the link to its arrow. */
 @media (max-width: 1360px) {
     .hud .panel-heading .text-link {
         gap: 0;
@@ -3708,8 +3586,7 @@ code,
     min-height: 0;
     overflow: hidden;
 }
-/* The list takes the height the rail leaves and shows as many whole rows
-   as fit: the rows that do not fit fall into zero-height implicit rows. */
+/* Show only whole rows; overflow goes to zero-height implicit rows. */
 .hud .power-list {
     flex: 1;
     min-height: 0;
@@ -3866,9 +3743,6 @@ code,
     margin: 8px 14px 0;
     border-bottom-color: var(--rule);
 }
-.hud .live-feed {
-    min-height: 0;
-}
 
 /* 05 Chain, 06 Epoch */
 .hud .chain-strip {
@@ -3881,7 +3755,7 @@ code,
 .hud .chain-stats dd {
     font-size: 11.5px;
 }
-/* Scrolling back through the chain holds it; the start resumes it. */
+/* Scrolled away from the start: track is held. */
 .hud .chain-track {
     margin-top: 8px;
     padding-bottom: 6px;
@@ -3899,7 +3773,7 @@ code,
         transparent
     );
 }
-/* The head row holds its height whichever control it shows. */
+/* Same head height for either control. */
 .hud .chain-head {
     height: 26px;
     flex-wrap: nowrap;
@@ -3957,7 +3831,7 @@ code,
     min-height: 0;
     overflow: hidden;
 }
-/* On a short screen the mix sheds detail from the bottom up. */
+/* Short screens drop mix details from the bottom. */
 .hud .mix-panel {
     container-type: size;
 }
@@ -4178,7 +4052,7 @@ code,
     background: var(--hot);
 }
 
-/* The inspector takes the left rail's place while it is open. */
+/* Open inspector replaces the left rail. */
 .observatory:has(.validator-inspector) .hud-left {
     visibility: hidden;
 }
@@ -4220,7 +4094,7 @@ code,
     }
 }
 
-/* ---- Tablet and phone: the globe leads, instruments follow ---- */
+/* ---- Tablet and phone: globe first, panels below ---- */
 @media (max-width: 1080px) {
     .observatory {
         --pad: 16px;
@@ -4363,7 +4237,7 @@ code,
     }
 }
 
-/* The activity head wraps whenever the strip spans a narrow screen. */
+/* Wrap the activity head on narrow screens. */
 @media (max-width: 1080px) {
     .hud .chain-head {
         height: auto;
@@ -4379,8 +4253,7 @@ code,
     }
 }
 
-/* On a phone every panel speaks with one voice: the same heading size,
-   weight and inset, and the same inside for every grid of figures. */
+/* Phone: same heading size and insets for every panel. */
 @media (max-width: 760px) {
     .observatory .panel-heading,
     .observatory-below .panel-heading {
@@ -4417,20 +4290,14 @@ code,
     }
 }
 
-/* A finger scrolling past the throughput chart must not light it up:
-   on touch the chart is for reading, and the figures above it carry
-   the current, average and peak. */
+/* No chart tooltip on touch; the stats above cover it. */
 @media (pointer: coarse) {
     .throughput-chart .recharts-wrapper {
         pointer-events: none;
     }
 }
 
-/* ---------- Interaction states ----------
-   One system for everything that responds. Rows step one tone up and
-   their name comes to full ink; controls take a stronger edge and press
-   down a pixel; links underline and their arrow leans the way it points.
-   The accent stays on data and on what is selected, never on hover. */
+/* ---------- Interaction states ---------- */
 :root {
     --hover: #0d1519;
     --edge-hover: #44565e;
@@ -4508,8 +4375,7 @@ code,
 .text-link:hover {
     text-decoration-color: currentColor;
 }
-/* Markers answer a pointer with colour only: they sit on map positions,
-   so they never shift or grow. */
+/* Markers only change colour so they never shift. */
 .observatory .globe-marker {
     cursor: pointer;
     transition:

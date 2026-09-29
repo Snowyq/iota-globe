@@ -43,29 +43,6 @@ export function LoadingState({
     );
 }
 
-export function ActivitySkeleton() {
-    return (
-        <LoadingState
-            title="Connecting to the activity stream"
-            description="New events will appear automatically."
-            className="activity-loading"
-        >
-            <div className="activity-skeleton-rows">
-                {Array.from({ length: 3 }, (_, i) => (
-                    <div key={i}>
-                        <SkeletonBlock className="skeleton-event-icon" />
-                        <div>
-                            <SkeletonBlock className="skeleton-event-id" />
-                            <SkeletonBlock className="skeleton-event-meta" />
-                        </div>
-                        <SkeletonBlock className="skeleton-event-time" />
-                    </div>
-                ))}
-            </div>
-        </LoadingState>
-    );
-}
-
 export function ChartSkeleton({
     title = "Collecting live samples",
     description = "The chart appears after the first two samples.",

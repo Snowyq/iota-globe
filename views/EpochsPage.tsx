@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import {
     EmptyState,
+    ErrorBanner,
     Metric,
     compact,
     nano,
@@ -23,9 +24,17 @@ import { EpochProgress } from "@/features/dashboard/EpochProgress";
 import { NetworkContext } from "@/features/network/NetworkContext";
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
-import { formatDuration } from "@/lib/format";
-import { ArrowLeft, ArrowRight, WifiOff } from "lucide-react";
+import { formatDuration, formatUtc } from "@/lib/format";
+import { withTimeout } from "@/lib/utils";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
+
+const iotaAmount = (value: string | null) =>
+    value == null
+        ? "—"
+        : (Number(value) / 1e9).toLocaleString("en-US", {
+              maximumFractionDigits: 2,
+          });
 
 export default function EpochsPage() {
     const { network } = useContext(OptionsContext);
@@ -48,7 +57,7 @@ export default function EpochsPage() {
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [hasNext, setHasNext] = useState(false);
     const [retry, setRetry] = useState(0);
-    // A cursor belongs to its dataset. Never request a new network with an old cursor.
+    // Cursors are per network; never reuse one after switching.
     const pageIndex = pagination.network === network ? pagination.pageIndex : 0;
     const cursors =
         pagination.network === network ? pagination.cursors : [null];
@@ -62,12 +71,7 @@ export default function EpochsPage() {
         setHasNext(false);
         fetch(
             `/api/epochs?dataset=${network}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
-            {
-                signal: AbortSignal.any([
-                    controller.signal,
-                    AbortSignal.timeout(20_000),
-                ]),
-            }
+            { signal: withTimeout(controller.signal, 20_000) }
         )
             .then(async (response) => {
                 if (!response.ok) throw new Error("Failed to load epochs");
@@ -147,16 +151,12 @@ export default function EpochsPage() {
                 <EpochProgress />
             </div>
             {error && (
-                <div className="error-banner" role="alert">
-                    <WifiOff size={16} />
-                    <span>{error}</span>
-                    <button
-                        className="subtle-button ml-auto"
-                        onClick={() => setRetry((r) => r + 1)}
-                    >
-                        Retry
-                    </button>
-                </div>
+                <ErrorBanner
+                    role="alert"
+                    onRetry={() => setRetry((r) => r + 1)}
+                >
+                    {error}
+                </ErrorBanner>
             )}
             <EpochHistoryChart
                 epochs={epochs}
@@ -245,15 +245,7 @@ export default function EpochsPage() {
                                         data-label="Rewards (IOTA)"
                                         className="text-right tabular-nums"
                                     >
-                                        {epoch.stakeRewardsNano == null
-                                            ? "—"
-                                            : (
-                                                  Number(
-                                                      epoch.stakeRewardsNano
-                                                  ) / 1e9
-                                              ).toLocaleString("en-US", {
-                                                  maximumFractionDigits: 2,
-                                              })}
+                                        {iotaAmount(epoch.stakeRewardsNano)}
                                     </TableCell>
                                     <TableCell
                                         data-label="Last checkpoint"
@@ -269,32 +261,14 @@ export default function EpochsPage() {
                                         data-label="Storage inflow"
                                         className="text-right tabular-nums"
                                     >
-                                        {epoch.storageNetInflowNano == null
-                                            ? "—"
-                                            : (
-                                                  Number(
-                                                      epoch.storageNetInflowNano
-                                                  ) / 1e9
-                                              ).toLocaleString("en-US", {
-                                                  maximumFractionDigits: 2,
-                                              })}
+                                        {iotaAmount(epoch.storageNetInflowNano)}
                                     </TableCell>
                                     <TableCell
                                         data-label="Ended"
                                         className="text-right text-muted-foreground"
                                     >
                                         {epoch.epochEndTimestamp
-                                            ? new Date(
-                                                  Number(
-                                                      epoch.epochEndTimestamp
-                                                  )
-                                              ).toLocaleString("en-GB", {
-                                                  day: "2-digit",
-                                                  month: "short",
-                                                  hour: "2-digit",
-                                                  minute: "2-digit",
-                                                  timeZone: "UTC",
-                                              }) + " UTC"
+                                            ? `${formatUtc(Number(epoch.epochEndTimestamp))} UTC`
                                             : "In progress"}
                                     </TableCell>
                                 </TableRow>

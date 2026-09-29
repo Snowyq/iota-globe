@@ -20,8 +20,7 @@ export function ClusterMarker({ cluster }: { cluster: ValidatorCluster }) {
     const validator = single
         ? validators.find((v) => v.iotaAddress === cluster.validators[0])
         : null;
-    // The visible text is part of the name, so the button can be called
-    // by what it shows.
+    // Visible text is part of the accessible name (voice control).
     const shown = single
         ? (validator?.payload.name.slice(0, 3).toUpperCase() ?? "1")
         : String(cluster.count);

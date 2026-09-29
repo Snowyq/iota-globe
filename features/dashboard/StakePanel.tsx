@@ -3,25 +3,25 @@
 import { useContext } from "react";
 import Link from "next/link";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
-import { nakamotoCoefficient } from "@/features/validators/stats";
+import { nakamotoCoefficient, totalStake } from "@/features/validators/stats";
 import { SkeletonBlock } from "@/components/Loading";
 import {
     EmptyState,
     Panel,
     PanelHeader,
+    RetryButton,
     TextLink,
     compact,
 } from "./DashboardPrimitives";
 
-// Voting power decides consensus, so the panel leads with the smallest
-// group able to halt it, then shows how the rest of the power is spread.
+// Leads with the Nakamoto coefficient, then the spread of voting power.
 export function StakePanel() {
     const { validators, isLoading, error, refresh } =
         useContext(ValidatorsContext);
     const sorted = [...validators].sort(
         (a, b) => b.stats.stakePercent - a.stats.stakePercent
     );
-    const totalStake = validators.reduce((s, v) => s + v.stats.stakeIOTA, 0);
+    const staked = totalStake(validators);
     const totalPower = sorted.reduce((s, v) => s + v.stats.stakePercent, 0);
     const nakamoto = nakamotoCoefficient(
         sorted.map((v) => v.stats.stakePercent)
@@ -63,9 +63,7 @@ export function StakePanel() {
                     }
                     action={
                         error ? (
-                            <button className="subtle-button" onClick={refresh}>
-                                Try again
-                            </button>
+                            <RetryButton onClick={refresh} label="Try again" />
                         ) : undefined
                     }
                 />
@@ -134,7 +132,7 @@ export function StakePanel() {
                 <span>
                     {error && totalPower
                         ? "Last available snapshot"
-                        : `${compact(totalStake)} IOTA staked`}
+                        : `${compact(staked)} IOTA staked`}
                 </span>
                 <span>{validators.length} validators</span>
             </div>

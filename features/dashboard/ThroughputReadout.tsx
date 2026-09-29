@@ -9,8 +9,7 @@ import { Panel, PanelHeader, StreamBadge } from "./DashboardPrimitives";
 
 const SPAN = 60;
 
-// Throughput as the chain writes it: recomputed on every certified
-// checkpoint (~5 times a second), with the last minute traced per second.
+// Recomputed on every checkpoint; the trace shows the last minute per second.
 export function ThroughputReadout() {
     const { blocks, status } = useCheckpointStream();
     const trace = useMemo(() => throughputFrom(blocks, SPAN), [blocks]);
@@ -53,8 +52,7 @@ export function ThroughputReadout() {
                                   ? "is-peak"
                                   : undefined
                         }
-                        // Scaled rather than resized: the bars move every
-                        // checkpoint, and a transform skips layout.
+                        // transform instead of height to skip layout
                         style={{
                             transform: `scaleY(${Math.max(0.03, value / scale)})`,
                         }}

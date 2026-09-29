@@ -133,6 +133,55 @@ export function EmptyState({
         </div>
     );
 }
+export function RetryButton({
+    onClick,
+    retrying,
+    label = "Retry",
+    className,
+}: {
+    onClick: () => void;
+    retrying?: boolean;
+    label?: string;
+    className?: string;
+}) {
+    return (
+        <button
+            className={cn("subtle-button", className)}
+            disabled={retrying}
+            onClick={onClick}
+        >
+            {retrying ? "Retrying…" : label}
+        </button>
+    );
+}
+export function ErrorBanner({
+    children,
+    onRetry,
+    retrying,
+    retryLabel,
+    role = "status",
+    icon = true,
+}: {
+    children: React.ReactNode;
+    onRetry: () => void;
+    retrying?: boolean;
+    retryLabel?: string;
+    role?: "status" | "alert";
+    icon?: boolean;
+}) {
+    return (
+        <div className="error-banner" role={role}>
+            {icon && <WifiOff size={16} />}
+            <span>{children}</span>
+            <RetryButton
+                className="ml-auto"
+                onClick={onRetry}
+                retrying={retrying}
+                label={retryLabel}
+            />
+        </div>
+    );
+}
 export function compact(
     value: string | number | null | undefined,
     decimals = 2

@@ -1,5 +1,6 @@
 import type { NetworkApiResponseData } from "@/app/api/network/route";
 import type { ValidatorsApiResponseData } from "@/app/api/validators/route";
+import { withTimeout } from "./utils";
 
 export type FetchResult<T> = { data: T; ttl: number };
 
@@ -9,11 +10,10 @@ async function fetchSnapshot<T>(
     ttl: number,
     signal?: AbortSignal
 ): Promise<FetchResult<T>> {
-    // A stalled request must eventually become a recoverable error state.
-    const timeout = AbortSignal.timeout(20_000);
+    // A stalled request should turn into a retryable error.
     const response = await fetch(
         `${path}?dataset=${encodeURIComponent(network)}`,
-        { signal: signal ? AbortSignal.any([signal, timeout]) : timeout }
+        { signal: withTimeout(signal, 20_000) }
     );
     if (!response.ok)
         throw new Error(`Network request failed (${response.status})`);
@@ -22,6 +22,7 @@ async function fetchSnapshot<T>(
         throw new Error(json.error ?? "Network data is unavailable");
     return { data: json.payload, ttl: json.ttl ?? ttl };
 }
+
 export function fetchNetwork(network: string, signal?: AbortSignal) {
     return fetchSnapshot<NetworkApiResponseData>(
         "/api/network",
@@ -30,6 +31,7 @@ export function fetchNetwork(network: string, signal?: AbortSignal) {
         signal
     );
 }
+
 export function fetchValidators(network: string, signal?: AbortSignal) {
     return fetchSnapshot<ValidatorsApiResponseData>(
         "/api/validators",

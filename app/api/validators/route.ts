@@ -1,5 +1,5 @@
 import { getValidatorLocalization } from "@/lib/localizeValidators";
-import { NETWORK_URLS as datasets } from "@/lib/networks";
+import { datasetFrom, json } from "@/lib/api";
 import { IotaClient } from "@iota/iota-sdk/client";
 import { unstable_cache } from "next/cache";
 import { type NextRequest } from "next/server";
@@ -78,16 +78,9 @@ const fetchEpochEvents = unstable_cache(
 );
 
 export async function GET(request: NextRequest) {
-    const datasetParam =
-        request.nextUrl.searchParams.get("dataset") ?? "testnet";
-
-    if (!Object.hasOwn(datasets, datasetParam))
-        return new Response(JSON.stringify({ error: "Invalid dataset" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-        });
-
-    const url = datasets[datasetParam];
+    const dataset = datasetFrom(request);
+    if (!dataset) return json({ error: "Invalid dataset" }, 400);
+    const { url } = dataset;
 
     try {
         const [systemState, validatorsApy] = await Promise.all([
@@ -134,19 +127,9 @@ export async function GET(request: NextRequest) {
                 systemState.pendingActiveValidatorsSize,
         };
 
-        return new Response(
-            JSON.stringify({
-                status: "success",
-                ttl: TTL_MS,
-                payload: responseData,
-            }),
-            { headers: { "Content-Type": "application/json" } }
-        );
+        return json({ status: "success", ttl: TTL_MS, payload: responseData });
     } catch (error) {
         console.error("Error fetching validators:", error);
-        return new Response(
-            JSON.stringify({ error: "Failed to fetch validators" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+        return json({ error: "Failed to fetch validators" }, 500);
     }
 }

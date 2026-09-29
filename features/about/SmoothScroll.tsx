@@ -3,11 +3,11 @@
 import { ReactLenis, useLenis, type LenisRef } from "lenis/react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
+import { REDUCED_MOTION } from "@/lib/motion";
 import "lenis/dist/lenis.css";
 
-const query = "(prefers-reduced-motion: reduce)";
 const subscribe = (notify: () => void) => {
-    const media = window.matchMedia(query);
+    const media = window.matchMedia(REDUCED_MOTION);
     media.addEventListener("change", notify);
     return () => media.removeEventListener("change", notify);
 };
@@ -18,14 +18,13 @@ function TickerBridge() {
     return null;
 }
 
-// Smooth scrolling for this page only, driven by GSAP's ticker so scroll
-// and scroll-linked animation advance on the same frame. Off under reduced
-// motion.
+// Lenis driven by the GSAP ticker so scroll and ScrollTrigger share a frame.
+// Off under reduced motion.
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
     const lenisRef = useRef<LenisRef>(null);
     const reduced = useSyncExternalStore(
         subscribe,
-        () => window.matchMedia(query).matches,
+        () => window.matchMedia(REDUCED_MOTION).matches,
         () => true
     );
     useEffect(() => {
@@ -39,8 +38,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
             gsap.ticker.lagSmoothing(500, 33);
         };
     }, [reduced]);
-    // Root mode attaches to the window, so the page itself never moves
-    // in the tree when smooth scrolling switches on after hydration.
+    // Root mode: children don't remount when Lenis turns on after hydration.
     return (
         <>
             {!reduced && (

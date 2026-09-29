@@ -10,6 +10,8 @@ import {
     useRef,
     useState,
 } from "react";
+import { clampAltitude, HOME_VIEW, ZOOM_IN, ZOOM_OUT } from "./view";
+import { prefersReducedMotion } from "@/lib/motion";
 import type { GlobeController, GlobePoint, MapMode } from "./workerTypes";
 export type { GlobePoint } from "./workerTypes";
 
@@ -18,7 +20,6 @@ interface GlobeContextValue {
     onGlobeDispose: () => void;
     moveGlobeTo: (lat: number, lng: number, altitude?: number) => void;
     zoomGlobe: (direction: number) => void;
-    startSpinning: () => void;
     setAutoRotate: (enabled: boolean) => void;
     isRotating: boolean;
     resetGlobe: () => void;
@@ -36,7 +37,6 @@ export const GlobeContext = createContext<GlobeContextValue>({
     onGlobeDispose: () => {},
     moveGlobeTo: () => {},
     zoomGlobe: () => {},
-    startSpinning: () => {},
     setAutoRotate: () => {},
     isRotating: false,
     resetGlobe: () => {},
@@ -50,8 +50,6 @@ export const GlobeContext = createContext<GlobeContextValue>({
     inspectCluster: () => {},
 });
 
-const prefersReducedMotion = () =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 export default function GlobeContextProvider({
     children,
 }: {
@@ -117,25 +115,18 @@ export default function GlobeContextProvider({
         methods.pointOfView(
             {
                 ...view,
-                altitude: Math.min(
-                    5,
-                    Math.max(0.55, view.altitude * (direction > 0 ? 1.2 : 0.85))
+                altitude: clampAltitude(
+                    view.altitude * (direction > 0 ? ZOOM_OUT : ZOOM_IN)
                 ),
             },
             prefersReducedMotion() ? 0 : 160
         );
     }, []);
-    const startSpinning = useCallback(
-        () => setAutoRotate(!prefersReducedMotion()),
-        [setAutoRotate]
-    );
     const resetGlobe = useCallback(() => {
         const methods = controller.current;
         if (!methods) return;
         methods.pointOfView(
-            viewMode === "globe"
-                ? { lat: 22, lng: 8, altitude: 2.4 }
-                : { lat: 0, lng: 0, altitude: 2.1 },
+            { ...HOME_VIEW[viewMode] },
             prefersReducedMotion() ? 0 : 650
         );
         const rotate = viewMode === "globe" && !prefersReducedMotion();
@@ -172,7 +163,6 @@ export default function GlobeContextProvider({
             onGlobeDispose,
             moveGlobeTo,
             zoomGlobe,
-            startSpinning,
             setAutoRotate,
             isRotating,
             resetGlobe,
@@ -192,7 +182,6 @@ export default function GlobeContextProvider({
             onGlobeDispose,
             moveGlobeTo,
             zoomGlobe,
-            startSpinning,
             setAutoRotate,
             isRotating,
             resetGlobe,

@@ -43,9 +43,8 @@ const FEATURES = [
     },
 ];
 
-// React leaves `muted` out of the markup, and iOS Safari only autoplays a
-// video it can see is muted. The loop plays while it is on screen and
-// rests when it is not.
+// React doesn't render the `muted` attribute and iOS won't autoplay without
+// it, so set it by hand. Plays only while on screen.
 const playWhileVisible = (video: HTMLVideoElement | null) => {
     if (!video) return;
     video.muted = true;
@@ -59,8 +58,7 @@ const playWhileVisible = (video: HTMLVideoElement | null) => {
     return () => observer.disconnect();
 };
 
-// Pointing at a name brings its screen into the one frame; on a phone the
-// names wrap under the frame and a tap does the same.
+// Hover, focus or tap a name to show its screenshot.
 export function Features() {
     const [active, setActive] = useState(0);
     const current = FEATURES[active];

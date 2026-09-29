@@ -13,10 +13,9 @@ import {
     useState,
 } from "react";
 
-// A couple of minutes at mainnet's pace, enough for one-minute aggregates.
+// A couple of minutes at mainnet pace.
 const KEEP = 2_400;
-// Transactions arrive ~30 a second. Folding them in four times a second
-// keeps everything that shows them calm and costs a handful of renders.
+// ~30 tx/s arrive; batch them into four renders a second.
 const FLUSH_MS = 250;
 
 type TransactionData = {
@@ -53,7 +52,7 @@ export function TransactionStreamProvider({
                 return true;
             });
             if (!fresh.length) return previous;
-            // The stream sends oldest first; the list keeps newest first.
+            // The stream sends oldest first.
             return [...fresh.reverse(), ...previous].slice(0, KEEP);
         });
     }, []);
@@ -95,7 +94,7 @@ export const useTransactionStream = () => useContext(TransactionDataContext);
 
 export type TransactionMix = {
     count: number;
-    // Seconds of chain the sample covers (up to the window).
+    // Chain seconds covered, up to the window.
     spanSeconds: number;
     perMinute: number | null;
     user: number;
@@ -116,8 +115,7 @@ const OPS_BUCKETS = [
     { label: "11+", max: Infinity },
 ];
 
-// What the last minute of transactions was made of, measured on chain
-// time from the newest one seen.
+/** Breakdown of the last `windowMs` of chain time, from the newest tx. */
 export function mixFrom(
     transactions: TransactionStreamItem[],
     windowMs = 60_000

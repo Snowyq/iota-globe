@@ -10,6 +10,7 @@ import {
     EmptyState,
     Panel,
     PanelHeader,
+    RetryButton,
     TextLink,
     compact,
 } from "./DashboardPrimitives";
@@ -69,12 +70,10 @@ export function ValidatorPreview() {
                         description={error ?? undefined}
                         action={
                             error ? (
-                                <button
-                                    className="subtle-button"
+                                <RetryButton
                                     onClick={refresh}
-                                >
-                                    Try again
-                                </button>
+                                    label="Try again"
+                                />
                             ) : undefined
                         }
                     />
@@ -86,9 +85,7 @@ export function ValidatorPreview() {
                                 href={`/validators/${v.iotaAddress}`}
                                 key={v.iotaAddress}
                             >
-                                <span className="validator-rank">
-                                    {i + 1}
-                                </span>
+                                <span className="validator-rank">{i + 1}</span>
                                 <span className="validator-name">
                                     <ValidatorAvatar
                                         name={v.payload.name}

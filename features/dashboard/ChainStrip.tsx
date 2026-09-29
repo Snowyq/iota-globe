@@ -17,9 +17,10 @@ import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
 import { useNowTime } from "@/hooks/useNowTime";
 import type { StreamStatus } from "@/hooks/useLiveStream";
 import { shortString } from "@/lib/format";
+import { prefersReducedMotion } from "@/lib/motion";
 import { StreamBadge } from "./DashboardPrimitives";
 
-// About twelve seconds of chain, or a few seconds of transactions.
+// ~12 s of checkpoints or a few seconds of transactions.
 const KEEP = 60;
 
 type View = "checkpoints" | "transactions";
@@ -87,9 +88,7 @@ const transactionCards = (txs: TransactionStreamItem[]): Card[] => {
     }));
 };
 
-// Live activity as it is written: checkpoints, or the transactions inside
-// them, appended at the left. Scrolling back holds the track still;
-// returning to the start resumes it.
+// Newest items enter on the left. Scrolling away pauses the track.
 export function ChainStrip() {
     const [view, setView] = useState<View>("checkpoints");
     const { blocks, status: cpStatus } = useCheckpointStream();
@@ -104,21 +103,14 @@ export function ChainStrip() {
     );
     const status: StreamStatus = view === "checkpoints" ? cpStatus : txStatus;
     const cards = held ?? live;
-    const unread = held
-        ? Math.max(
-              0,
-              live.findIndex((c) => c.key === held[0]?.key) < 0
-                  ? live.length
-                  : live.findIndex((c) => c.key === held[0]?.key)
-          )
-        : 0;
+    const heldIndex = held ? live.findIndex((c) => c.key === held[0]?.key) : 0;
+    const unread = heldIndex < 0 ? live.length : heldIndex;
     const now = useNowTime(250);
     const trackRef = useRef<HTMLOListElement>(null);
     const headRef = useRef<string | null>(null);
     useOnNetworkChange(() => setHeld(null));
 
-    // Ages tick four times a second. They are written straight into the
-    // cards so the list only re-renders when the track moves.
+    // Ages are written to the DOM so the list only re-renders on new items.
     useEffect(() => {
         const track = trackRef.current;
         if (!track) return;
@@ -127,7 +119,7 @@ export function ChainStrip() {
             const label = li.querySelector(".chain-age");
             if (!ts || !label) continue;
             const text = `${age(now, ts)}s`;
-            // Edit the text node in place: replacing it re-lays the card out.
+            // Edit the text node in place to avoid a relayout.
             if (label.firstChild) {
                 if (label.firstChild.nodeValue !== text)
                     label.firstChild.nodeValue = text;
@@ -135,8 +127,7 @@ export function ChainStrip() {
         }
     }, [now, cards]);
 
-    // Conveyor: new cards slide the track in from the left by the width
-    // they added, instead of the whole row jumping.
+    // Slide new cards in from the left instead of jumping the row.
     const headKey = held ? null : (live[0]?.key ?? null);
     const previousLive = useRef<Card[]>([]);
     useLayoutEffect(() => {
@@ -149,15 +140,13 @@ export function ChainStrip() {
         const index = live.findIndex((c) => c.key === previous);
         const added = Math.min(index < 0 ? 0 : index, 4);
         if (added <= 0 || before === live) return;
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-            return;
+        if (prefersReducedMotion()) return;
         const items = track.children;
         if (items.length < 2) return;
         const pitch =
             (items[1] as HTMLElement).offsetLeft -
             (items[0] as HTMLElement).offsetLeft;
-        // Only the cards in view move; the rest are off to the right and
-        // would each cost a style pass per frame for nothing.
+        // Animate only the visible cards.
         const visible = Math.ceil(track.clientWidth / Math.max(1, pitch)) + 1;
         for (const el of [...items].slice(0, visible + added))
             (el as HTMLElement).animate(
@@ -170,7 +159,7 @@ export function ChainStrip() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [headKey]);
 
-    // A vertical wheel moves the track sideways while the pointer is on it.
+    // Map vertical wheel to horizontal scroll.
     useEffect(() => {
         const track = trackRef.current;
         if (!track) return;
