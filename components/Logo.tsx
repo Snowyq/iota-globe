@@ -1,4 +1,4 @@
-// The mark: a wireframe globe crossed by one orbit, with a node lit on it.
+// Wireframe globe crossed by an orbit with one node on it.
 export function BrandMark({ size = 22 }: { size?: number }) {
     return (
         <svg

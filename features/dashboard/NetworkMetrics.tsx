@@ -3,6 +3,7 @@
 import { useContext } from "react";
 import { NetworkContext } from "@/features/network/NetworkContext";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
+import { meanApy, totalStake } from "@/features/validators/stats";
 import {
     Metric,
     Panel,
@@ -24,15 +25,8 @@ export function NetworkMetrics() {
         networkStats,
         isLoading: validatorsLoading,
     } = useContext(ValidatorsContext);
-    const totalStake = networkStats
-        ? validators.reduce((s, v) => s + v.stats.stakeIOTA, 0)
-        : null;
-    const apys = validators.flatMap((v) =>
-        v.stats.apyPercent == null ? [] : [v.stats.apyPercent]
-    );
-    const averageApy = apys.length
-        ? apys.reduce((a, b) => a + b, 0) / apys.length
-        : null;
+    const staked = networkStats ? totalStake(validators) : null;
+    const averageApy = meanApy(validators);
     const committee = validators.filter((v) => v.isCommitteeMember).length;
     return (
         <div className="metrics-grid">
@@ -48,11 +42,10 @@ export function NetworkMetrics() {
                 }
             />
             <Metric
-                // The unit rides in the label: a long figure such as 586.26M
-                // must never push it out of a narrow rail card.
+                // Unit in the label so long values fit the narrow rail.
                 label="Staked, IOTA"
                 isLoading={validatorsLoading && !networkStats}
-                value={compact(totalStake)}
+                value={compact(staked)}
                 detail={
                     <>
                         Mean APY <b>{averageApy?.toFixed(2) ?? "—"}%</b>

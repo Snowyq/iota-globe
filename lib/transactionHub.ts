@@ -1,7 +1,12 @@
 import { IotaClient } from "@iota/iota-sdk/client";
 import type { IotaTransactionBlockResponse } from "@iota/iota-sdk/client";
 
-import { subscribeCheckpointRecords } from "./checkpointHub";
+import {
+    subscribeCheckpointRecords,
+    type CheckpointRecord,
+} from "./checkpointHub";
+import { Hub, perNetwork } from "./hubStream";
+import { withTimeout } from "./utils";
 
 export type TransactionStreamItem = {
     digest: string;
@@ -13,13 +18,11 @@ export type TransactionStreamItem = {
     checkpoint: string | null;
 };
 
-type Listener = (item: TransactionStreamItem) => void;
 type Pending = { digest: string; checkpoint: string; timestampMs: string };
 
 const SYSTEM_ADDRESS =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
-// The RPC resolves at most 50 digests per call. A feed shows the newest
-// rows, so when the chain outruns one call the oldest digests are dropped.
+// RPC limit per call. If the chain outruns it, the oldest digests are dropped.
 const BATCH = 50;
 const BACKLOG = 40;
 const SEEN = 4_000;
@@ -53,12 +56,8 @@ export function toStreamItem(
     };
 }
 
-// Rides the shared checkpoint tail: every certified checkpoint hands over
-// its digests, which are resolved in one batched call per round. Nothing
-// polls on its own and every open stream shares the same reads.
-class TransactionTail {
-    private listeners = new Set<Listener>();
-    private backlog: TransactionStreamItem[] = [];
+// Rides the shared checkpoint tail and resolves its digests in batches.
+class TransactionTail extends Hub<TransactionStreamItem> {
     private queue: Pending[] = [];
     private seen = new Set<string>();
     private inflight = false;
@@ -71,53 +70,46 @@ class TransactionTail {
         private client: IotaClient,
         private network: string,
         private url: string
-    ) {}
-
-    subscribe(listener: Listener) {
-        this.listeners.add(listener);
-        for (const item of this.backlog) listener(item);
-        if (this.listeners.size === 1) this.start();
-        return () => {
-            this.listeners.delete(listener);
-            if (!this.listeners.size) this.stop();
-        };
+    ) {
+        super(BACKLOG, "Transaction");
     }
 
-    private start() {
+    protected start() {
         this.controller = new AbortController();
         this.stopCheckpoints = subscribeCheckpointRecords(
             this.network,
             this.url,
-            (record) => {
-                for (const digest of record.digests)
-                    if (!this.seen.has(digest))
-                        this.queue.push({
-                            digest,
-                            checkpoint: record.sequenceNumber,
-                            timestampMs: record.timestampMs,
-                        });
-                if (this.queue.length > BATCH * 4)
-                    this.queue = this.queue.slice(-BATCH * 4);
-                // A page of checkpoints arrives in one go; resolve all of
-                // its digests in one call rather than one per checkpoint.
-                if (!this.scheduled) {
-                    this.scheduled = true;
-                    queueMicrotask(() => {
-                        this.scheduled = false;
-                        void this.pump();
-                    });
-                }
-            }
+            (record) => this.enqueue(record)
         );
     }
 
-    private stop() {
+    protected stop() {
         this.stopCheckpoints?.();
         this.stopCheckpoints = null;
         this.controller?.abort();
         this.controller = null;
         this.queue = [];
         this.inflight = false;
+    }
+
+    private enqueue(record: CheckpointRecord) {
+        for (const digest of record.digests)
+            if (!this.seen.has(digest))
+                this.queue.push({
+                    digest,
+                    checkpoint: record.sequenceNumber,
+                    timestampMs: record.timestampMs,
+                });
+        if (this.queue.length > BATCH * 4)
+            this.queue = this.queue.slice(-BATCH * 4);
+        // A page of checkpoints arrives at once; resolve it in one call.
+        if (!this.scheduled) {
+            this.scheduled = true;
+            queueMicrotask(() => {
+                this.scheduled = false;
+                void this.pump();
+            });
+        }
     }
 
     private async pump() {
@@ -127,43 +119,18 @@ class TransactionTail {
         const batch = this.queue.slice(-BATCH);
         this.queue = [];
         try {
-            const byDigest = new Map(batch.map((p) => [p.digest, p]));
-            const txs = await this.client.multiGetTransactionBlocks({
-                digests: batch.map((p) => p.digest),
-                options: { showEffects: true, showInput: true },
-                signal: AbortSignal.any([
-                    controller.signal,
-                    AbortSignal.timeout(10_000),
-                ]),
-            });
+            const items = await this.resolve(batch, controller.signal);
             if (controller.signal.aborted) return;
-            const items = txs
-                .filter((tx) => tx.digest && !this.seen.has(tx.digest))
-                .map((tx) => toStreamItem(tx, byDigest.get(tx.digest)))
-                // Oldest first, so the newest lands on top of a feed.
-                .sort(
-                    (a, b) =>
-                        Number(a.checkpoint ?? 0) - Number(b.checkpoint ?? 0)
-                );
             for (const item of items) {
                 this.seen.add(item.digest);
                 if (this.seen.size > SEEN)
                     this.seen.delete(this.seen.values().next().value!);
-                this.backlog.push(item);
-                if (this.backlog.length > BACKLOG) this.backlog.shift();
-                for (const listener of this.listeners) {
-                    try {
-                        listener(item);
-                    } catch (error) {
-                        console.error("Transaction listener failed", error);
-                    }
-                }
+                this.emit(item);
             }
             this.failures = 0;
         } catch {
             if (controller.signal.aborted) return;
-            // Lost digests are not retried; the feed continues with the next
-            // checkpoints. Back off briefly so a failing RPC is not hammered.
+            // Lost digests are dropped; back off while the RPC fails.
             this.failures += 1;
             await new Promise((r) =>
                 setTimeout(r, Math.min(500 * this.failures, 5_000))
@@ -175,23 +142,36 @@ class TransactionTail {
             }
         }
     }
+
+    private async resolve(batch: Pending[], signal: AbortSignal) {
+        const byDigest = new Map(batch.map((p) => [p.digest, p]));
+        const txs = await this.client.multiGetTransactionBlocks({
+            digests: batch.map((p) => p.digest),
+            options: { showEffects: true, showInput: true },
+            signal: withTimeout(signal, 10_000),
+        });
+        return (
+            txs
+                .filter((tx) => tx.digest && !this.seen.has(tx.digest))
+                .map((tx) => toStreamItem(tx, byDigest.get(tx.digest)))
+                // Oldest first, so the newest lands on top of a feed.
+                .sort(
+                    (a, b) =>
+                        Number(a.checkpoint ?? 0) - Number(b.checkpoint ?? 0)
+                )
+        );
+    }
 }
 
-const globalHub = globalThis as typeof globalThis & {
-    __transactionTails?: Map<string, TransactionTail>;
-};
-const tails: Map<string, TransactionTail> = (globalHub.__transactionTails ??=
-    new Map());
+const tailFor = perNetwork(
+    "__transactionTails",
+    (network, url) => new TransactionTail(new IotaClient({ url }), network, url)
+);
 
 export function subscribeTransactions(
     network: string,
     url: string,
-    listener: Listener
+    listener: (item: TransactionStreamItem) => void
 ) {
-    let tail = tails.get(network);
-    if (!tail) {
-        tail = new TransactionTail(new IotaClient({ url }), network, url);
-        tails.set(network, tail);
-    }
-    return tail.subscribe(listener);
+    return tailFor(network, url).subscribe(listener);
 }

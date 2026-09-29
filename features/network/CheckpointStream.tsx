@@ -13,8 +13,7 @@ import {
     useState,
 } from "react";
 
-// About 70 s of chain at mainnet's ~5 checkpoints per second: enough for the
-// one-minute throughput trace without holding the whole session.
+// ~70 s at mainnet's ~5 checkpoints/s, enough for the one-minute trace.
 const KEEP = 360;
 
 type Listener = (item: CheckpointStreamItem) => void;
@@ -29,8 +28,7 @@ const CheckpointDataContext = createContext<CheckpointData>({
     blocks: [],
     status: "connecting",
 });
-// Kept apart from the data so a component that only reacts to arrivals
-// (the globe) is not re-rendered five times a second.
+// Separate context so arrival-only consumers (the globe) don't re-render.
 const CheckpointEventsContext = createContext<
     (listener: Listener) => () => void
 >(() => () => {});
@@ -41,17 +39,31 @@ const ThroughputSamplesContext = createContext<ThroughputSamples>({
     samples: [],
     status: "connecting",
 });
-// Five minutes of one-second samples for the throughput chart.
+// Five minutes of one-second samples.
 const SAMPLE_SECONDS = 300;
 const SMOOTH_SECONDS = 5;
+
+// Trailing mean per second from `first` to `last`, capped to SAMPLE_SECONDS.
+function smoothed(buckets: Map<number, number>, first: number, last: number) {
+    const series: TpsSample[] = [];
+    for (let second = first; second <= last; second++) {
+        let sum = 0,
+            n = 0;
+        for (let k = second - SMOOTH_SECONDS + 1; k <= second; k++)
+            if (k >= first) {
+                sum += buckets.get(k) ?? 0;
+                n += 1;
+            }
+        series.push({ timestamp: second * 1000, tps: sum / n });
+    }
+    return series.slice(-SAMPLE_SECONDS);
+}
 
 const bySequence = (a: CheckpointStreamItem, b: CheckpointStreamItem) =>
     Number(b.sequenceNumber) - Number(a.sequenceNumber);
 
-// One EventSource feeds every live element: the chain strip, the throughput
-// readout, the pulses on the globe and the checkpoint in the top bar.
-// Arrivals are merged into state at most once per frame, so the minute of
-// backlog replayed on connect costs one render rather than hundreds.
+// One EventSource for all live widgets. Arrivals are flushed once per frame,
+// so the replayed backlog costs one render.
 export function CheckpointStreamProvider({
     children,
 }: {
@@ -62,7 +74,7 @@ export function CheckpointStreamProvider({
     const head = useRef<number | null>(null);
     const pending = useRef<CheckpointStreamItem[]>([]);
     const frame = useRef<number | null>(null);
-    // Transactions per chain second, filled as checkpoints arrive.
+    // tx count per chain second
     const buckets = useRef(new Map<number, number>());
     const counted = useRef(new Set<string>());
     const lastSampled = useRef<number | null>(null);
@@ -77,19 +89,8 @@ export function CheckpointStreamProvider({
         for (const second of seconds)
             if (second < complete - SAMPLE_SECONDS - SMOOTH_SECONDS)
                 buckets.current.delete(second);
-        const series: TpsSample[] = [];
         const first = seconds.find((x) => buckets.current.has(x))!;
-        for (let second = first; second <= complete; second++) {
-            let sum = 0,
-                n = 0;
-            for (let k = second - SMOOTH_SECONDS + 1; k <= second; k++)
-                if (k >= first) {
-                    sum += buckets.current.get(k) ?? 0;
-                    n += 1;
-                }
-            series.push({ timestamp: second * 1000, tps: sum / n });
-        }
-        setSamples(series.slice(-SAMPLE_SECONDS));
+        setSamples(smoothed(buckets.current, first, complete));
     }, []);
     const flush = useCallback(() => {
         frame.current = null;
@@ -142,7 +143,7 @@ export function CheckpointStreamProvider({
                 for (const listener of listeners.current) listener(item);
             }
             pending.current.push(item);
-            // Frames stop in a hidden tab; keep only what could be shown.
+            // rAF pauses in hidden tabs, so cap the queue.
             if (pending.current.length > KEEP * 2)
                 pending.current = pending.current.slice(-KEEP);
             frame.current ??= requestAnimationFrame(flush);
@@ -170,18 +171,18 @@ export function CheckpointStreamProvider({
     );
 }
 
-// Throughput per second of chain time, as a trailing five-second mean.
+/** Per-second throughput of chain time, as a trailing 5 s mean. */
 export const useThroughputSamples = () => useContext(ThroughputSamplesContext);
 
 export const useCheckpointStream = () => useContext(CheckpointDataContext);
 export const useCheckpointEvents = () => useContext(CheckpointEventsContext);
 
 export type ThroughputTrace = {
-    // Transactions per second over the last few seconds of checkpoints.
+    // tx/s over the last few seconds
     tps: number | null;
-    // Checkpoints per second over the same window.
+    // checkpoints/s over the same window
     rate: number | null;
-    // One value per second, oldest first, for the last minute.
+    // per-second tx counts, oldest first
     seconds: number[];
     peak: number;
     mean: number | null;
@@ -189,8 +190,7 @@ export type ThroughputTrace = {
 
 const WINDOW_MS = 6_000;
 
-// Throughput read straight off the certified checkpoints: transactions in
-// the window divided by the time the window spans on chain.
+/** Throughput from checkpoints: window tx count over its chain time span. */
 export function throughputFrom(
     blocks: CheckpointStreamItem[],
     span = 60
@@ -206,7 +206,7 @@ export function throughputFrom(
         if (newest - ts > WINDOW_MS) break;
         oldest = ts;
         count += 1;
-        // The oldest block only opens the window; its transactions came before.
+        // The oldest block's txs predate the window; subtracted below.
         tx += block.txCount;
     }
     const windowSeconds = (newest - oldest) / 1000;
@@ -227,7 +227,7 @@ export function throughputFrom(
     }
     const first = covered.indexOf(true);
     const trace = first < 0 ? [] : seconds.slice(first);
-    // The current second is still filling; leave it out of peak and mean.
+    // Skip the still-filling current second.
     const settled = trace.slice(0, -1);
     return {
         tps,

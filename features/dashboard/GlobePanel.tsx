@@ -29,6 +29,7 @@ import { useValidatorLink } from "@/features/globe/useValidatorLink";
 import type { PointOfView } from "@/features/globe/workerTypes";
 import type { GestureHint } from "@/features/globe/Globe";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
+import { isTypingTarget } from "@/lib/utils";
 import { Panel } from "./DashboardPrimitives";
 
 class GlobeBoundary extends Component<
@@ -90,7 +91,7 @@ export function GlobePanel() {
     );
     const [attempt, setAttempt] = useState(0);
     const [slow, setSlow] = useState(false);
-    // The skeleton stays for its fade-out once the globe is ready.
+    // Keep the skeleton mounted until its fade-out ends.
     const [skeletonGone, setSkeletonGone] = useState(false);
     const handleSkeletonGone = useCallback(() => setSkeletonGone(true), []);
     const [searching, setSearching] = useState(false);
@@ -122,8 +123,7 @@ export function GlobePanel() {
         },
         []
     );
-    // Scrolling, or one finger, belongs to the page; when someone reaches
-    // for the map that way, say how to move it instead.
+    // Wheel and one-finger drags scroll the page, so hint the real gesture.
     const handleHint = useCallback(
         (kind: GestureHint) => {
             if (kind === "touch") {
@@ -135,7 +135,7 @@ export function GlobePanel() {
         },
         [flash]
     );
-    // Touch screens get the gestures spelled out once, when the map is up.
+    // Show the touch gestures once when the map is ready.
     const handleReady = useCallback(() => {
         setPhase("ready");
         if (window.matchMedia?.("(pointer: coarse)").matches)
@@ -148,18 +148,14 @@ export function GlobePanel() {
         return () => clearTimeout(timer);
     }, [phase, attempt]);
 
-    // ⌘K or "/" opens the search from anywhere on the page.
+    // ⌘K or "/" toggles the search.
     useEffect(() => {
         if (!canSearch) return;
         const keydown = (event: KeyboardEvent) => {
-            const target = event.target as HTMLElement | null;
-            const typing =
-                target?.isContentEditable ||
-                ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "");
             if (
                 (event.key.toLowerCase() === "k" &&
                     (event.metaKey || event.ctrlKey)) ||
-                (event.key === "/" && !typing)
+                (event.key === "/" && !isTypingTarget(event.target))
             ) {
                 event.preventDefault();
                 setSearching((open) => !open);
@@ -176,7 +172,7 @@ export function GlobePanel() {
     const latRef = useRef<HTMLSpanElement>(null);
     const lngRef = useRef<HTMLSpanElement>(null);
     const altRef = useRef<HTMLSpanElement>(null);
-    // The camera moves every frame; write the readout straight to the DOM.
+    // Updated every frame, so write to the DOM directly.
     const handleView = useCallback((view: PointOfView) => {
         const lng = ((((view.lng + 180) % 360) + 360) % 360) - 180;
         if (latRef.current)

@@ -11,8 +11,7 @@ import { Panel, PanelHeader, StreamBadge } from "./DashboardPrimitives";
 const iota = (value: number | null) =>
     value == null ? "—" : value < 0.01 ? value.toFixed(4) : value.toFixed(3);
 
-// What the last minute of transactions was made of. Re-read once a second:
-// an aggregate that holds still is easier to read than a scrolling list.
+// Last-minute breakdown, re-read once a second so the numbers stay readable.
 export function TransactionMixPanel() {
     const { transactions, status } = useTransactionStream();
     const latest = useRef(transactions);

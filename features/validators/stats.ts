@@ -31,11 +31,21 @@ export function computeValidatorStats(
     };
 }
 
-/**
- * Nakamoto coefficient for a BFT committee: the smallest number of
- * validators whose combined voting power exceeds one third of the total,
- * i.e. enough to halt consensus. Returns null when no power is reported.
- */
+type WithStats = { stats: ValidatorStats };
+
+export function totalStake(validators: WithStats[]) {
+    return validators.reduce((sum, v) => sum + v.stats.stakeIOTA, 0);
+}
+
+/** Unweighted mean APY, or null when no validator reports one. */
+export function meanApy(validators: WithStats[]) {
+    const apys = validators.flatMap((v) =>
+        v.stats.apyPercent == null ? [] : [v.stats.apyPercent]
+    );
+    return apys.length ? apys.reduce((a, b) => a + b, 0) / apys.length : null;
+}
+
+/** Fewest validators with over a third of voting power, or null if none. */
 export function nakamotoCoefficient(votingPower: number[]): number | null {
     const sorted = votingPower
         .filter((value) => Number.isFinite(value) && value > 0)

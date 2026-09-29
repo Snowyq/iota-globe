@@ -252,21 +252,11 @@ function ValidatorRowSkeleton() {
                     <Skeleton className="h-3 w-24" />
                 </div>
             </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-16" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-12" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-12" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-10" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-16" />
-            </TableCell>
+            {["w-16", "w-12", "w-12", "w-10", "w-16"].map((width, i) => (
+                <TableCell key={i}>
+                    <Skeleton className={`h-3 ${width}`} />
+                </TableCell>
+            ))}
         </TableRow>
     );
 }

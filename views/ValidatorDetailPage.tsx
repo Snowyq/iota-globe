@@ -6,13 +6,16 @@ import { PageHeader } from "@/components/PageHeader";
 import { ValidatorAvatar } from "@/components/ValidatorAvatar";
 import {
     EmptyState,
+    ErrorBanner,
     Metric,
     Panel,
     PanelHeader,
+    RetryButton,
     compact,
     nano,
 } from "@/features/dashboard/DashboardPrimitives";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
+import { totalStake } from "@/features/validators/stats";
 import { ArrowLeft, ArrowUpRight, MapPin, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -61,13 +64,10 @@ export default function ValidatorDetailPage() {
                         }
                         action={
                             error ? (
-                                <button
-                                    className="subtle-button"
-                                    disabled={isLoading}
+                                <RetryButton
                                     onClick={refresh}
-                                >
-                                    {isLoading ? "Retrying…" : "Retry"}
-                                </button>
+                                    retrying={isLoading}
+                                />
                             ) : undefined
                         }
                     />
@@ -79,9 +79,8 @@ export default function ValidatorDetailPage() {
     const nextCommission = Number(payload.nextEpochCommissionRate) / 100;
     const nextStake = nano(payload.nextEpochStake);
     const stakeDelta = nextStake == null ? null : nextStake - stats.stakeIOTA;
-    const totalStake = validators.reduce((s, v) => s + v.stats.stakeIOTA, 0);
-    const stakeShare =
-        totalStake > 0 ? (stats.stakeIOTA / totalStake) * 100 : 0;
+    const allStake = totalStake(validators);
+    const stakeShare = allStake > 0 ? (stats.stakeIOTA / allStake) * 100 : 0;
     const rank =
         [...validators]
             .sort((a, b) => b.stats.stakePercent - a.stats.stakePercent)
@@ -99,16 +98,13 @@ export default function ValidatorDetailPage() {
                 All validators
             </Link>
             {error && (
-                <div className="error-banner" role="status">
-                    <span>{error} Displaying the last available snapshot.</span>
-                    <button
-                        className="subtle-button ml-auto"
-                        disabled={isLoading}
-                        onClick={refresh}
-                    >
-                        {isLoading ? "Retrying…" : "Retry"}
-                    </button>
-                </div>
+                <ErrorBanner
+                    icon={false}
+                    onRetry={refresh}
+                    retrying={isLoading}
+                >
+                    {error} Displaying the last available snapshot.
+                </ErrorBanner>
             )}
             <div className="detail-hero">
                 <ValidatorAvatar

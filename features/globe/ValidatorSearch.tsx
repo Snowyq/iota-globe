@@ -9,8 +9,7 @@ import {
 } from "@/features/validators/ValidatorsContext";
 import { GlobeContext } from "./GlobeContext";
 
-// Lower is better: the name's start, then any word's start, then anywhere
-// in the name, then the address, then the place.
+// Lower is better: name prefix, word prefix, name, address, place. -1 = no match.
 function rank(v: Validator, q: string) {
     const name = v.payload.name.toLowerCase();
     if (name.startsWith(q)) return 0;
@@ -34,8 +33,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
     );
 }
 
-// A command palette for the map: type to narrow, arrows to move, Enter to
-// fly to the validator and open its details.
+// Command palette: arrows to move, Enter flies to the validator.
 export function ValidatorSearch({ onClose }: { onClose: () => void }) {
     const { validators, selectValidator } = useContext(ValidatorsContext);
     const { moveGlobeTo, setOpenClusterId } = useContext(GlobeContext);

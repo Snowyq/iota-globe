@@ -7,8 +7,7 @@ import { useContext } from "react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
     const { network } = useContext(OptionsContext);
-    // The overview and the about page run edge to edge; every other page
-    // sits in the column.
+    // Overview and about are full-bleed; other pages use the column.
     const pathname = usePathname();
     const stage = pathname === "/" || pathname === "/about";
     return (
@@ -19,7 +18,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
                 {children}
             </main>
-            {/* The about page closes on its own footer. */}
+            {/* About has its own footer. */}
             {pathname !== "/about" && (
                 <footer className="workspace-footer">
                     <div className="colophon">

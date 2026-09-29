@@ -39,7 +39,7 @@ const resolveValidatorIp = unstable_cache(
     { revalidate: 3_600 }
 );
 
-// keyed by sorted IPs so cache key is stable regardless of validator order
+// Callers pass sorted IPs so the cache key ignores validator order.
 const fetchGeoBatch = unstable_cache(
     async (ips: string[]): Promise<[string, Geo][]> => {
         try {
@@ -51,7 +51,9 @@ const fetchGeoBatch = unstable_cache(
             });
             if (!res.ok) return [];
             const data = (await res.json()) as Array<Geo & { status: string }>;
-            return data.filter((item) => item.status === "success").map((item) => [item.query, item]);
+            return data
+                .filter((item) => item.status === "success")
+                .map((item) => [item.query, item]);
         } catch {
             return [];
         }

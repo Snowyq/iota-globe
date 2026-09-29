@@ -57,7 +57,7 @@ export function ConnectionReadout() {
             ? "connecting"
             : "offline";
     const { blocks } = useCheckpointStream();
-    // The streamed head moves ~5 times a second; the snapshot is the fallback.
+    // Streamed head first, the polled snapshot as a fallback.
     const checkpoint =
         blocks[0]?.sequenceNumber ?? networkMetrics?.currentCheckpoint;
     return (

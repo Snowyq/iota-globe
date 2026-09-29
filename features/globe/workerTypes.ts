@@ -8,8 +8,7 @@ export interface GlobeController {
     controls(): { autoRotate: boolean };
     renderer(): { domElement: HTMLCanvasElement };
 }
-// Insets, in CSS pixels, of the part of the canvas that panels leave free;
-// the planet is sized to and centred in it.
+// Canvas insets (CSS px) covered by panels; the planet centres in the rest.
 export type GlobeFrame = {
     top: number;
     right: number;
@@ -39,13 +38,13 @@ export type WorkerInput =
     | { type: "mode"; mode: MapMode }
     | { type: "rotate"; enabled: boolean }
     | { type: "drag"; dx: number; dy: number }
-    // The pointer lifted after a drag; the view may coast on.
+    // Pointer lifted after a drag; the view may coast.
     | { type: "release" }
-    // Multiply the altitude; on the flat map, about the canvas point x, y.
+    // Multiply altitude; the flat map zooms about canvas point x, y.
     | { type: "zoom"; factor: number; x?: number; y?: number }
     | { type: "visibility"; visible: boolean }
     | { type: "motion"; reduced: boolean }
-    // One certified checkpoint; its load sets how bright the pulse runs.
+    // One checkpoint; load sets pulse brightness.
     | { type: "pulse"; load: number };
 export type WorkerOutput =
     | { type: "ready" }

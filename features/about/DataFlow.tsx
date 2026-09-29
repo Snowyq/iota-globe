@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { prefersReducedMotion } from "@/lib/motion";
 import {
     useCheckpointEvents,
     useCheckpointStream,
 } from "@/features/network/CheckpointStream";
 
-// The stages one checkpoint passes through, sized by how long each takes.
+// Checkpoint pipeline stages; bar widths follow `ms`.
 const STAGES = [
     {
         ms: 200,
@@ -41,9 +42,7 @@ export function DataFlow() {
     const [count, setCount] = useState(0);
 
     useEffect(() => {
-        const reduced = window.matchMedia(
-            "(prefers-reduced-motion: reduce)"
-        ).matches;
+        const reduced = prefersReducedMotion();
         let visible = true;
         const observer = new IntersectionObserver(([entry]) => {
             visible = entry.isIntersecting;
@@ -58,7 +57,7 @@ export function DataFlow() {
             setCount((n) => n + 1);
             const el = lane.current;
             if (reduced || !visible || !el || document.hidden) return;
-            // One dot per real checkpoint, crossing the bar.
+            // One dot per real checkpoint.
             const dot = document.createElement("i");
             dot.className = "flow-dot";
             el.appendChild(dot);

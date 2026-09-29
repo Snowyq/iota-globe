@@ -3,24 +3,14 @@
 import { useContext } from "react";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import { useNowTime } from "@/hooks/useNowTime";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatUtc as utc } from "@/lib/format";
 import { TextLink } from "./DashboardPrimitives";
 
 const CELLS = 48;
 
-// Epochs last a day, so the clock time says enough; the date goes in a
-// tooltip.
+// Epochs last a day: show the time, keep the date for the tooltip.
 const clock = (ms: number) =>
     new Date(ms).toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "UTC",
-    });
-
-const utc = (ms: number) =>
-    new Date(ms).toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",
         hour: "2-digit",
         minute: "2-digit",
         timeZone: "UTC",
@@ -44,7 +34,9 @@ export function EpochProgress() {
             </div>
             <div className="epoch-progress">
                 <div className="epoch-progress-labels">
-                    <span title={networkStats ? `${utc(start)} UTC` : undefined}>
+                    <span
+                        title={networkStats ? `${utc(start)} UTC` : undefined}
+                    >
                         {networkStats ? `Opened ${clock(start)}` : "—"}
                     </span>
                     <b>{progress?.toFixed(1) ?? "—"}%</b>
