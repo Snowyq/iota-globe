@@ -17,7 +17,7 @@ import { installEventSource, TestEventSource } from "../helpers/eventSource";
 beforeEach(() => {
     installEventSource();
     vi.useFakeTimers();
-    // jsdom paints no frames; a frame here is one timer tick.
+    // jsdom has no frames, so fake one per 16ms tick.
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
         setTimeout(() => callback(performance.now()), 16)
     );
@@ -86,8 +86,8 @@ function renderChain(
     };
 }
 
-describe("checkpoint stream", () => {
-    it("merges a burst into one render, newest first, without repeats", () => {
+describe("CheckpointStreamProvider", () => {
+    it("batches a burst into one render, newest first", () => {
         const renders: string[][] = [];
         const { source } = renderChain({ onRender: (s) => renders.push(s) });
         expect(source().url).toBe("/api/checkpoints/stream?dataset=mainnet");
@@ -101,11 +101,11 @@ describe("checkpoint stream", () => {
         act(() => vi.advanceTimersByTime(16));
         expect(screen.getByLabelText("Blocks")).toHaveTextContent("12,11,10");
         expect(screen.getByLabelText("Status")).toHaveTextContent("live");
-        // No render ever showed part of the burst.
+        // No partial burst was ever rendered.
         expect(renders.filter((s) => s.length > 0 && s.length < 3)).toEqual([]);
     });
 
-    it("tells listeners only about checkpoints that move the head forward", () => {
+    it("notifies listeners only when the head advances", () => {
         const onArrival = vi.fn();
         const { source } = renderChain({ onArrival });
         act(() => {
@@ -116,7 +116,7 @@ describe("checkpoint stream", () => {
         expect(onArrival.mock.calls.map(([s]) => s)).toEqual(["10", "12"]);
     });
 
-    it("turns arrivals into per-second samples, leaving out the second still filling", () => {
+    it("builds per-second throughput samples", () => {
         const { source } = renderChain();
         act(() => {
             source().emit(checkpoint(1, 100, 5));
@@ -124,13 +124,13 @@ describe("checkpoint stream", () => {
             source().emit(checkpoint(3, 102, 1));
         });
         act(() => vi.advanceTimersByTime(16));
-        // A five-second trailing mean: 5, then (5 + 10) / 2.
+        // 5s trailing mean; the current second is still filling.
         expect(screen.getByLabelText("Samples")).toHaveTextContent(
             "100:5,101:7.5"
         );
     });
 
-    it("starts over on a network switch", () => {
+    it("resets on network change", () => {
         const { source, switchTo } = renderChain();
         act(() => source().emit(checkpoint(10, 100)));
         act(() => vi.advanceTimersByTime(16));
@@ -161,8 +161,8 @@ const transaction = (digest: string) => ({
     checkpoint: "1",
 });
 
-describe("transaction stream", () => {
-    it("folds arrivals in a quarter second at a time, newest first, once each", () => {
+describe("TransactionStreamProvider", () => {
+    it("flushes every 250ms, newest first, deduplicated", () => {
         render(
             <TestNetwork>
                 <TransactionStreamProvider>
@@ -173,7 +173,7 @@ describe("transaction stream", () => {
         const source = TestEventSource.instances[0];
         expect(source.url).toBe("/api/transactions/stream?dataset=mainnet");
         act(() => {
-            // The stream sends oldest first.
+            // Server sends oldest first.
             for (const digest of ["a", "b", "c", "a"])
                 source.emit(transaction(digest));
         });

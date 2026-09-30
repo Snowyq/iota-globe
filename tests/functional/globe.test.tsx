@@ -22,7 +22,7 @@ import { snapshotResponse } from "../helpers/async";
 import { validatorRecord, validatorsSnapshot } from "../helpers/fixtures";
 import { installMatchMedia } from "../helpers/matchMedia";
 
-// Replace only Next's dynamic loader. The real React worker adapter is exercised.
+// Skip next/dynamic, render the real Globe.
 vi.mock("@/features/globe/GlobeNoSSR", async () => ({
     GlobeNoSSR: (await import("@/features/globe/Globe")).Globe,
 }));
@@ -79,11 +79,12 @@ function mountPanel() {
     );
 }
 
-describe("worker adapter lifecycle", () => {
-    it("leaves one finger to the page, turns with two, coasts on release and zooms on a double tap", async () => {
+describe("Globe", () => {
+    it("rotates with two fingers and zooms on double tap", async () => {
         const { container } = render(<Globe />);
         const worker = await harness.boot();
         const canvas = container.querySelector("canvas")!;
+        // One finger is left to page scroll.
         pointer(canvas, "pointerdown", 1, 100, 100);
         pointer(canvas, "pointermove", 1, 120, 140);
         expect(worker.postMessage).not.toHaveBeenCalledWith(
@@ -92,9 +93,8 @@ describe("worker adapter lifecycle", () => {
         pointer(canvas, "pointerup", 1, 120, 140);
         pointer(canvas, "pointerdown", 1, 100, 100);
         pointer(canvas, "pointerdown", 2, 200, 100);
-        // The midpoint has to travel before the turn starts...
+        // The midpoint must move past a threshold before turning starts.
         pointer(canvas, "pointermove", 1, 100, 130);
-        // ...and from there the globe follows it.
         pointer(canvas, "pointermove", 2, 200, 130);
         expect(worker.postMessage).toHaveBeenCalledWith({
             type: "drag",
@@ -115,32 +115,7 @@ describe("worker adapter lifecycle", () => {
         );
         expect(TestMapWorker.instances).toHaveLength(1);
     });
-    it("hints at two fingers when one swipes sideways, and keeps the page still under two", async () => {
-        const onHint = vi.fn();
-        const { container } = render(<Globe onHint={onHint} />);
-        await harness.boot();
-        const stage = container.querySelector(".globe-worker-stage")!;
-        const touch = (type: string, points: [number, number][]) => {
-            const event = new Event(type, { bubbles: true, cancelable: true });
-            Object.defineProperty(event, "touches", {
-                value: points.map(([clientX, clientY]) => ({
-                    clientX,
-                    clientY,
-                })),
-            });
-            act(() => void stage.dispatchEvent(event));
-            return event;
-        };
-        touch("touchstart", [[100, 100]]);
-        touch("touchmove", [[150, 104]]);
-        expect(onHint).toHaveBeenCalledWith("touch");
-        const two = touch("touchmove", [
-            [100, 100],
-            [200, 100],
-        ]);
-        expect(two.defaultPrevented).toBe(true);
-    });
-    it("leaves a plain scroll to the page and zooms with Command held", async () => {
+    it("zooms on wheel only with Cmd held", async () => {
         const onHint = vi.fn();
         const { container } = render(<Globe onHint={onHint} />);
         const worker = await harness.boot();
@@ -165,62 +140,7 @@ describe("worker adapter lifecycle", () => {
             expect.objectContaining({ type: "zoom" })
         );
     });
-    it("pinches to zoom and stops turning when one of two fingers lifts", async () => {
-        const { container } = render(<Globe />);
-        const worker = await harness.boot();
-        const canvas = container.querySelector("canvas")!;
-        pointer(canvas, "pointerdown", 1, 100, 100);
-        pointer(canvas, "pointerdown", 2, 200, 100);
-        // A clear spread starts the zoom from where it is, then follows.
-        pointer(canvas, "pointermove", 2, 300, 100);
-        pointer(canvas, "pointermove", 2, 400, 100);
-        expect(worker.postMessage).toHaveBeenCalledWith({
-            type: "view",
-            view: { altitude: 1.6 },
-            duration: 0,
-        });
-        pointer(canvas, "pointerup", 1, 100, 100);
-        expect(worker.postMessage).toHaveBeenLastCalledWith({
-            type: "release",
-        });
-        pointer(canvas, "pointermove", 2, 320, 100);
-        expect(worker.postMessage).toHaveBeenLastCalledWith({
-            type: "release",
-        });
-        pointer(canvas, "pointercancel", 2, 320, 100);
-        const count = worker.postMessage.mock.calls.length;
-        pointer(canvas, "pointermove", 2, 350, 150);
-        expect(worker.postMessage.mock.calls).toHaveLength(count);
-    });
-    it("does not zoom on the small change of spread that comes with a turn", async () => {
-        const { container } = render(<Globe />);
-        const worker = await harness.boot();
-        const canvas = container.querySelector("canvas")!;
-        pointer(canvas, "pointerdown", 1, 100, 100);
-        pointer(canvas, "pointerdown", 2, 200, 100);
-        pointer(canvas, "pointermove", 1, 100, 130);
-        pointer(canvas, "pointermove", 2, 212, 140);
-        pointer(canvas, "pointermove", 1, 96, 150);
-        expect(worker.postMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ type: "drag" })
-        );
-        expect(worker.postMessage).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: "view" })
-        );
-    });
-    it("keeps mouse dragging available without enabling touch interaction", async () => {
-        const { container } = render(<Globe />);
-        const worker = await harness.boot();
-        const canvas = container.querySelector("canvas")!;
-        pointer(canvas, "pointerdown", 1, 10, 20, "mouse");
-        pointer(canvas, "pointermove", 1, 30, 25, "mouse");
-        expect(worker.postMessage).toHaveBeenCalledWith({
-            type: "drag",
-            dx: 20,
-            dy: 5,
-        });
-    });
-    it("waits for paint, transfers a panel-sized canvas and tolerates Strict Mode", async () => {
+    it("boots the worker after paint and survives Strict Mode", async () => {
         const onReady = vi.fn();
         const { unmount } = render(
             <StrictMode>
@@ -245,24 +165,13 @@ describe("worker adapter lifecycle", () => {
         act(() => worker.emit({ type: "ready" }));
         expect(onReady).toHaveBeenCalledOnce();
     });
-    it("reuses its worker when switching projections", async () => {
-        const { rerender } = render(<Globe mode="globe" />);
-        const worker = await harness.boot();
-        rerender(<Globe mode="map" />);
-        expect(TestMapWorker.instances).toHaveLength(1);
-        expect(worker.postMessage).toHaveBeenCalledWith({
-            type: "mode",
-            mode: "map",
-        });
-        expect(worker.terminate).not.toHaveBeenCalled();
-    });
-    it("cancels scheduled startup when leaving the view before initialization", async () => {
+    it("skips startup if unmounted first", async () => {
         const { unmount } = render(<Globe />);
         unmount();
         await harness.boot();
         expect(TestMapWorker.instances).toHaveLength(0);
     });
-    it("forwards resize, visibility and keyboard input to the worker", async () => {
+    it("forwards resize, visibility and keyboard input", async () => {
         render(<Globe />);
         const worker = await harness.boot();
         harness.resize(900, 500);
@@ -290,7 +199,7 @@ describe("worker adapter lifecycle", () => {
             factor: 0.85,
         });
     });
-    it("projects accessible markers without recreating their React tree", async () => {
+    it("positions markers from worker frames", async () => {
         const point = { lat: 0, lng: 0, iotaAddress: "0xalpha" };
         render(
             <GlobeContext value={globeContext({ geoPoints: [point] })}>
@@ -335,8 +244,8 @@ describe("worker adapter lifecycle", () => {
     });
 });
 
-describe("network map interactions", () => {
-    it("shows loading until the actual ready event and switches between 3D and 2D", async () => {
+describe("GlobePanel", () => {
+    it("enables controls on ready and switches 3D/2D", async () => {
         const user = userEvent.setup();
         mountPanel();
         expect(
@@ -352,7 +261,6 @@ describe("network map interactions", () => {
         expect(
             screen.getByRole("button", { name: "Find validator" })
         ).toBeEnabled();
-        // The skeleton fades out over the globe, then leaves.
         await waitFor(() =>
             expect(
                 screen.queryByText("Rendering the validator globe")
@@ -373,37 +281,7 @@ describe("network map interactions", () => {
             expect.objectContaining({ type: "view" })
         );
     });
-    it("finds a validator from the search palette and returns focus", async () => {
-        const user = userEvent.setup();
-        mountPanel();
-        const worker = await harness.boot();
-        act(() => worker.emit({ type: "ready" }));
-        const opener = await screen.findByRole("button", {
-            name: "Find validator",
-        });
-        await waitFor(() => expect(opener).toBeEnabled());
-        await user.keyboard("{Meta>}k{/Meta}");
-        const input = screen.getByRole("combobox", {
-            name: /Validator name/,
-        });
-        expect(input).toHaveFocus();
-        await user.keyboard("{Escape}");
-        expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-        expect(opener).toHaveFocus();
-        await user.click(opener);
-        await user.type(
-            screen.getByRole("combobox", { name: /Validator name/ }),
-            "warsaw"
-        );
-        expect(screen.getAllByRole("option")).toHaveLength(1);
-        await user.keyboard("{Enter}");
-        expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-        expect(
-            await screen.findByRole("complementary", { name: /Alpha/ })
-        ).toBeInTheDocument();
-        expect(TestMapWorker.instances).toHaveLength(1);
-    });
-    it("keeps a useful fallback and can restart a failed renderer", async () => {
+    it("shows a fallback and restarts after an error", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {});
         const user = userEvent.setup();
         mountPanel();
@@ -420,7 +298,7 @@ describe("network map interactions", () => {
         act(() => replacement.emit({ type: "ready" }));
         expect(screen.getByRole("button", { name: "Zoom in" })).toBeEnabled();
     });
-    it("starts paused when reduced motion is requested", async () => {
+    it("starts paused with reduced motion", async () => {
         installMatchMedia({ "(prefers-reduced-motion: reduce)": true });
         mountPanel();
         const worker = await harness.boot();

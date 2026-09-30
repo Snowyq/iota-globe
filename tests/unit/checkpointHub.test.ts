@@ -36,7 +36,7 @@ describe("checkpoint tail", () => {
     });
     afterEach(() => vi.useRealTimers());
 
-    it("shares one tail per network, replays the backlog and resumes from the cursor", async () => {
+    it("shares one tail per network and resumes after errors", async () => {
         const { subscribeCheckpoints } = await load();
         rpc.getLatestCheckpointSequenceNumber.mockResolvedValue("1000");
         rpc.getCheckpoints
@@ -62,7 +62,7 @@ describe("checkpoint tail", () => {
         expect(second).toEqual(["99", "100"]);
         expect(constructed).toHaveBeenCalledTimes(1);
 
-        // The failed read backs off, then continues after checkpoint 100.
+        // Backs off after the failed read, then resumes from 100.
         await vi.advanceTimersByTimeAsync(150);
         await vi.advanceTimersByTimeAsync(2_000);
         expect(rpc.getCheckpoints).toHaveBeenLastCalledWith(
