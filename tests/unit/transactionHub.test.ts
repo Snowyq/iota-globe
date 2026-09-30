@@ -54,7 +54,7 @@ describe("transaction tail", () => {
     });
     afterEach(() => vi.useRealTimers());
 
-    it("resolves every checkpoint's digests in one shared batch, oldest first", async () => {
+    it("resolves digests in one shared batch", async () => {
         const { subscribeTransactions } = await load();
         rpc.getLatestCheckpointSequenceNumber.mockResolvedValue("10");
         rpc.getCheckpoints
@@ -80,7 +80,7 @@ describe("transaction tail", () => {
 
         expect(rpc.multiGetTransactionBlocks).toHaveBeenCalledTimes(1);
         expect(first).toEqual(["a", "b", "c"]);
-        // A late subscriber starts from the backlog.
+        // Late subscribers get the backlog.
         expect(second).toEqual(["a", "b", "c"]);
 
         stopFirst();
@@ -90,7 +90,7 @@ describe("transaction tail", () => {
         expect(rpc.getCheckpoints.mock.calls.length).toBe(calls);
     });
 
-    it("maps fees and marks system transactions", async () => {
+    it("maps fees and flags system transactions", async () => {
         const { toStreamItem } = await load();
         const item = toStreamItem(tx("d") as never, {
             digest: "d",

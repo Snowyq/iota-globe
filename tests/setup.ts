@@ -3,8 +3,7 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { installMatchMedia } from "./helpers/matchMedia";
 
-// jsdom has no layout engine. These defaults only provide missing APIs;
-// tests that verify observer behavior install controllable implementations.
+// jsdom lacks these; the globe tests install controllable versions.
 class ResizeObserverStub {
     observe() {}
     unobserve() {}

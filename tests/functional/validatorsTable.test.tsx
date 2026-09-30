@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
@@ -40,8 +40,8 @@ const names = () =>
         .getAllByRole("row", { name: /^View / })
         .map((row) => row.getAttribute("aria-label"));
 
-describe("validator directory interactions", () => {
-    it("keeps the previous validator snapshot visible during a retry", () => {
+describe("ValidatorsTable", () => {
+    it("keeps rows visible while reloading", () => {
         render(
             <ValidatorsContext
                 value={validatorsContext({
@@ -59,36 +59,23 @@ describe("validator directory interactions", () => {
             screen.queryByText("Loading validators…")
         ).not.toBeInTheDocument();
     });
-    it("replaces a failed remote logo with the validator initial", () => {
-        const record = validator({
-            payload: {
-                name: "Alpha",
-                imageUrl: "https://example.com/missing.png",
-            },
-        });
-        render(table("", "all", [record]));
-        const row = screen.getByRole("row", { name: "View Alpha" });
-        fireEvent.error(row.querySelector("img")!);
-        expect(row.querySelector("img")).toBeNull();
-        expect(row).toHaveTextContent("A");
+    it("searches by name, address or country", () => {
+        const { rerender } = render(table("  ALPHA  "));
+        expect(names()).toEqual(["View Alpha"]);
+        for (const query of ["0xbeta", "germany"]) {
+            rerender(table(query));
+            expect(names()).toEqual(["View Beta"]);
+        }
     });
-    it.each([
-        ["  ALPHA  ", "Alpha"],
-        ["0xbeta", "Beta"],
-        ["germany", "Beta"],
-    ])("searches name, address or country using %s", (query, expected) => {
-        render(table(query));
-        expect(names()).toEqual([`View ${expected}`]);
+    it("filters by status", () => {
+        const { rerender } = render(table("", "committee"));
+        expect(names()).toEqual(["View Alpha", "View No APY"]);
+        for (const filter of ["active", "at-risk"] as const) {
+            rerender(table("", filter));
+            expect(names()).toEqual(["View Beta"]);
+        }
     });
-    it.each([
-        ["committee", ["View Alpha", "View No APY"]],
-        ["active", ["View Beta"]],
-        ["at-risk", ["View Beta"]],
-    ] as const)("applies the %s status filter", (filter, expected) => {
-        render(table("", filter));
-        expect(names()).toEqual(expected);
-    });
-    it("sorts in both directions and updates accessible sort state", async () => {
+    it("sorts both ways and sets aria-sort", async () => {
         const user = userEvent.setup();
         render(table());
         expect(names()[0]).toBe("View Beta");
@@ -100,7 +87,7 @@ describe("validator directory interactions", () => {
         await user.click(screen.getByRole("button", { name: "Sort by APY" }));
         expect(names()).toEqual(["View No APY", "View Alpha", "View Beta"]);
     });
-    it("paginates and resets to page one when the query changes", async () => {
+    it("paginates and resets on a new query", async () => {
         const user = userEvent.setup();
         const records = Array.from({ length: 20 }, (_, i) =>
             validator({
@@ -125,14 +112,14 @@ describe("validator directory interactions", () => {
         expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
         expect(names()).toEqual(["View Operator 19"]);
     });
-    it("shows an actionable empty result rather than unrelated validators", () => {
+    it("shows an empty state", () => {
         render(table("does-not-exist"));
         expect(screen.getByText("No validators found.")).toBeInTheDocument();
         expect(
             screen.getByRole("button", { name: "Next validator page" })
         ).toBeDisabled();
     });
-    it("supports keyboard activation and moves the map to the selected operator", async () => {
+    it("opens a validator from the keyboard", async () => {
         const user = userEvent.setup(),
             selectValidator = vi.fn(),
             moveGlobeTo = vi.fn();

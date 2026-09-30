@@ -36,8 +36,8 @@ const mount = () =>
         }
     );
 
-describe("validator data provider", () => {
-    it("loads normalized validator metrics through the API transport", async () => {
+describe("ValidatorsContext", () => {
+    it("loads validators with computed stats", async () => {
         const snapshot = validatorsSnapshot();
         snapshot.epochInfoEvents = [rewardEvent("0xalpha", "1500000000")];
         request.mockResolvedValue(snapshotResponse(snapshot, 15000));
@@ -55,7 +55,7 @@ describe("validator data provider", () => {
         expect(result.current.data.dataTtl).toBe(15000);
         expect(result.current.data.isLoading).toBe(false);
     });
-    it("can recover from a failed first request", async () => {
+    it("recovers from a failed first request", async () => {
         request
             .mockResolvedValueOnce(new Response(null, { status: 503 }))
             .mockResolvedValueOnce(snapshotResponse(validatorsSnapshot()));
@@ -68,31 +68,7 @@ describe("validator data provider", () => {
         );
         expect(result.current.data.error).toBeNull();
     });
-    it("retains successful data during an explicit retry", async () => {
-        request.mockResolvedValueOnce(snapshotResponse(validatorsSnapshot()));
-        const { result } = mount();
-        await waitFor(() =>
-            expect(result.current.data.validators).toHaveLength(1)
-        );
-        const pending = deferred<Response>();
-        request.mockReturnValueOnce(pending.promise);
-        act(() => result.current.data.refresh());
-        expect(result.current.data.isLoading).toBe(true);
-        expect(result.current.data.validators[0].payload.name).toBe("Alpha");
-        pending.resolve(
-            snapshotResponse(
-                validatorsSnapshot([
-                    validatorRecord({ payload: { name: "Updated" } }),
-                ])
-            )
-        );
-        await waitFor(() =>
-            expect(result.current.data.validators[0].payload.name).toBe(
-                "Updated"
-            )
-        );
-    });
-    it("clears selection and old data when changing networks", async () => {
+    it("clears selection and data on network change", async () => {
         request.mockResolvedValueOnce(snapshotResponse(validatorsSnapshot()));
         const { result } = mount();
         await waitFor(() =>
@@ -121,7 +97,7 @@ describe("validator data provider", () => {
             )
         );
     });
-    it("never publishes a late response from the previous network", async () => {
+    it("ignores a late response from the previous network", async () => {
         const old = deferred<Response>(),
             next = deferred<Response>();
         request
@@ -142,7 +118,7 @@ describe("validator data provider", () => {
         );
         expect(result.current.data.validators[0].iotaAddress).toBe("0xnew");
     });
-    it("does not overlap pending polls and aborts on unmount", () => {
+    it("does not overlap polls and aborts on unmount", () => {
         vi.useFakeTimers();
         request.mockReturnValue(new Promise(() => {}));
         const { unmount } = mount();

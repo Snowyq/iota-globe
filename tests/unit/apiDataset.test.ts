@@ -10,23 +10,22 @@ const client = vi.hoisted(() => vi.fn());
 vi.mock("@iota/iota-sdk/client", () => ({ IotaClient: client }));
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
-describe.each([
-    ["network", network],
-    ["validators", validators],
-    ["epochs", epochs],
-    ["checkpoint stream", checkpoints],
-    ["transaction stream", transactions],
-] as const)("%s dataset validation", (_name, get) => {
-    it.each(["unknown", "__proto__", "constructor"])(
-        "rejects %s without creating an RPC client",
-        async (dataset) => {
+describe("dataset validation", () => {
+    it.each([
+        ["network", network],
+        ["validators", validators],
+        ["epochs", epochs],
+        ["checkpoint stream", checkpoints],
+        ["transaction stream", transactions],
+    ] as const)("%s rejects unknown datasets", async (_name, get) => {
+        for (const dataset of ["unknown", "__proto__", "constructor"]) {
             const response = await get(
                 new NextRequest(
                     `http://localhost/api/test?dataset=${encodeURIComponent(dataset)}`
                 )
             );
             expect(response.status).toBe(400);
-            expect(client).not.toHaveBeenCalled();
         }
-    );
+        expect(client).not.toHaveBeenCalled();
+    });
 });

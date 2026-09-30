@@ -15,7 +15,7 @@ function renderNavigation() {
 }
 
 describe("navigation", () => {
-    it("marks the current page in the top bar and in the phone tab bar", () => {
+    it("marks the current page and offers a skip link", () => {
         renderNavigation();
         const [topnav, tabbar] = screen.getAllByRole("navigation", {
             name: "Main navigation",
@@ -30,14 +30,11 @@ describe("navigation", () => {
                 within(nav).getByRole("link", { name: /Validators/ })
             ).toHaveAttribute("aria-current", "page");
         }
-    });
-    it("offers a skip link to the main content", () => {
-        renderNavigation();
         expect(
             screen.getByRole("link", { name: "Skip to content" })
         ).toHaveAttribute("href", "#main-content");
     });
-    it("switches networks through the accessible picker", async () => {
+    it("switches network with the mouse", async () => {
         const user = userEvent.setup();
         renderNavigation();
         const picker = screen.getByRole("combobox", { name: "Network" });
@@ -46,7 +43,7 @@ describe("navigation", () => {
         expect(picker).toHaveTextContent("Testnet");
         expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     });
-    it("supports keyboard choice and closes the picker with Escape", async () => {
+    it("switches network with the keyboard", async () => {
         const user = userEvent.setup();
         renderNavigation();
         const picker = screen.getByRole("combobox", { name: "Network" });

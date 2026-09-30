@@ -31,8 +31,8 @@ const tx = (
     ...overrides,
 });
 
-describe("throughput read off checkpoints", () => {
-    it("has nothing to say about fewer than two checkpoints", () => {
+describe("throughputFrom", () => {
+    it("needs at least two checkpoints", () => {
         expect(throughputFrom([checkpoint(1, 1000, 5)])).toEqual({
             tps: null,
             rate: null,
@@ -42,8 +42,8 @@ describe("throughput read off checkpoints", () => {
         });
     });
 
-    it("leaves out the oldest checkpoint's transactions, which only open the window", () => {
-        // Newest first, as the stream keeps them.
+    it("computes rate and per-second buckets", () => {
+        // Newest first; the oldest only opens the window.
         const trace = throughputFrom([
             checkpoint(3, 2000, 4),
             checkpoint(2, 1500, 6),
@@ -51,20 +51,13 @@ describe("throughput read off checkpoints", () => {
         ]);
         expect(trace.tps).toBe(10);
         expect(trace.rate).toBe(2);
-    });
-
-    it("buckets per second and keeps the filling second out of the mean", () => {
-        const trace = throughputFrom([
-            checkpoint(3, 2000, 4),
-            checkpoint(2, 1500, 6),
-            checkpoint(1, 1000, 10),
-        ]);
         expect(trace.seconds).toEqual([16, 4]);
         expect(trace.peak).toBe(16);
+        // The second still filling is left out of the mean.
         expect(trace.mean).toBe(16);
     });
 
-    it("counts only the last six seconds toward the current rate", () => {
+    it("only counts the last six seconds toward the rate", () => {
         const trace = throughputFrom([
             checkpoint(3, 10_000, 3),
             checkpoint(2, 9_000, 3),
@@ -75,13 +68,13 @@ describe("throughput read off checkpoints", () => {
     });
 });
 
-describe("transaction mix", () => {
-    it("measures the last minute of chain time from the newest transaction", () => {
+describe("mixFrom", () => {
+    it("summarises the last minute of transactions", () => {
         const mix = mixFrom([
             tx("d", 60_000, { gasIOTA: 3, txnsCount: 1, sender: "0xa" }),
             tx("c", 30_000, { isSystem: true, gasIOTA: 0, txnsCount: null }),
             tx("b", 0, { gasIOTA: 1, txnsCount: 4, sender: "0xb" }),
-            // A second too old for the window.
+            // Outside the window.
             tx("a", -1_000, { gasIOTA: 100, txnsCount: 20 }),
         ]);
         expect(mix.count).toBe(3);
@@ -102,14 +95,14 @@ describe("transaction mix", () => {
         ]);
     });
 
-    it("gives no rate until the sample spans a few seconds", () => {
+    it("has no rate for a very short sample", () => {
         const mix = mixFrom([tx("b", 1_000), tx("a", 0)]);
         expect(mix.perMinute).toBeNull();
     });
 });
 
-describe("hub to SSE bridge", () => {
-    it("sends each hub item as one event and unsubscribes when the request ends", async () => {
+describe("hubStream", () => {
+    it("forwards hub items as SSE and unsubscribes on abort", async () => {
         const unsubscribe = vi.fn();
         let emit: (item: { n: number }) => void = () => {};
         const controller = new AbortController();

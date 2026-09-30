@@ -7,13 +7,11 @@ import OptionsContextProvider, {
 import NetworkContextProvider, {
     NetworkContext,
 } from "@/features/network/NetworkContext";
-import { installEventSource } from "../helpers/eventSource";
 import { deferred, snapshotResponse } from "../helpers/async";
 import { networkSnapshot } from "../helpers/fixtures";
 
 const request = vi.fn<typeof fetch>();
 beforeEach(() => {
-    installEventSource();
     request.mockReset();
     vi.stubGlobal("fetch", request);
 });
@@ -32,8 +30,8 @@ const mount = () =>
         }
     );
 
-describe("network data provider", () => {
-    it("exposes initial loading, then a dated snapshot", async () => {
+describe("NetworkContext", () => {
+    it("loads a snapshot", async () => {
         const response = deferred<Response>();
         request.mockReturnValue(response.promise);
         const { result } = mount();
@@ -49,7 +47,7 @@ describe("network data provider", () => {
         expect(result.current.data.isLoading).toBe(false);
         expect(result.current.data.updatedAt).toEqual(expect.any(Number));
     });
-    it("keeps the last snapshot after a failed refresh and recovers via retry", async () => {
+    it("keeps the last snapshot when a refresh fails", async () => {
         request.mockResolvedValueOnce(snapshotResponse(networkSnapshot()));
         const { result } = mount();
         await waitFor(() =>
@@ -68,7 +66,7 @@ describe("network data provider", () => {
         );
         expect(result.current.data.error).toBeNull();
     });
-    it("ignores a late old-network response and aborts its transport", async () => {
+    it("ignores a late response from the previous network", async () => {
         const old = deferred<Response>(),
             next = deferred<Response>();
         request
@@ -96,7 +94,7 @@ describe("network data provider", () => {
         });
         expect(result.current.data.totalTransactions).toBe("testnet-value");
     });
-    it("does not overlap polls and cleans up pending work", async () => {
+    it("does not overlap polls and aborts on unmount", async () => {
         vi.useFakeTimers();
         request.mockReturnValue(new Promise(() => {}));
         const { unmount } = mount();

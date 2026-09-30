@@ -8,8 +8,17 @@ beforeEach(() => {
     vi.stubGlobal("fetch", request);
     request.mockReset();
 });
-describe("snapshot transport", () => {
-    it("routes and decodes each resource using the selected dataset", async () => {
+
+// Never settles unless the request signal aborts.
+const hang: typeof fetch = (_url, options) =>
+    new Promise((_resolve, reject) =>
+        options?.signal?.addEventListener("abort", () =>
+            reject(options.signal?.reason)
+        )
+    );
+
+describe("snapshot fetch", () => {
+    it("requests and decodes each resource", async () => {
         const network = networkSnapshot(),
             validators = validatorsSnapshot();
         request
@@ -28,45 +37,40 @@ describe("snapshot transport", () => {
             "/api/validators?dataset=testnet",
         ]);
     });
-    it("encodes dataset values instead of allowing query injection", async () => {
+
+    it("encodes the dataset param", async () => {
         request.mockResolvedValue(snapshotResponse(networkSnapshot()));
         await fetchNetwork("mainnet&other=true");
         expect(request.mock.calls[0][0]).toBe(
             "/api/network?dataset=mainnet%26other%3Dtrue"
         );
     });
-    it.each([
-        [fetchNetwork, 5000],
-        [fetchValidators, 30000],
-    ] as const)("uses the resource TTL fallback", async (load, ttl) => {
-        request.mockResolvedValue(
+
+    it("falls back to a default TTL", async () => {
+        request.mockImplementation(async () =>
             Response.json({ status: "success", payload: {} })
         );
-        expect((await load("mainnet")).ttl).toBe(ttl);
+        expect((await fetchNetwork("mainnet")).ttl).toBe(5000);
+        expect((await fetchValidators("mainnet")).ttl).toBe(30000);
     });
-    it("rejects HTTP errors even if the body resembles successful data", async () => {
-        request.mockResolvedValue(
+
+    it("rejects HTTP errors and failed payloads", async () => {
+        request.mockResolvedValueOnce(
             Response.json({ status: "success", payload: {} }, { status: 503 })
         );
         await expect(fetchNetwork("mainnet")).rejects.toThrow("503");
+        for (const body of [
+            { status: "error", error: "RPC unavailable" },
+            { status: "success", payload: null },
+        ]) {
+            request.mockResolvedValueOnce(Response.json(body));
+            await expect(fetchNetwork("mainnet")).rejects.toThrow();
+        }
     });
-    it.each([
-        { status: "error", error: "RPC unavailable" },
-        { status: "success", payload: null },
-    ])("rejects incomplete or failed API responses", async (body) => {
-        request.mockResolvedValue(Response.json(body));
-        await expect(fetchNetwork("mainnet")).rejects.toThrow();
-    });
-    it("propagates caller cancellation to the in-flight request", async () => {
+
+    it("passes the caller's abort signal through", async () => {
         const controller = new AbortController();
-        request.mockImplementation(
-            (_url, options) =>
-                new Promise((_resolve, reject) =>
-                    options?.signal?.addEventListener("abort", () =>
-                        reject(options.signal?.reason)
-                    )
-                )
-        );
+        request.mockImplementation(hang);
         const pending = expect(
             fetchValidators("mainnet", controller.signal)
         ).rejects.toMatchObject({ name: "AbortError" });
@@ -74,19 +78,13 @@ describe("snapshot transport", () => {
         await pending;
         expect(request.mock.calls[0][1]?.signal?.aborted).toBe(true);
     });
-    it("enforces the 20-second request deadline", async () => {
+
+    it("times out after 20 seconds", async () => {
         const deadline = new AbortController();
         const timeout = vi
             .spyOn(AbortSignal, "timeout")
             .mockReturnValue(deadline.signal);
-        request.mockImplementation(
-            (_url, options) =>
-                new Promise((_resolve, reject) =>
-                    options?.signal?.addEventListener("abort", () =>
-                        reject(options.signal?.reason)
-                    )
-                )
-        );
+        request.mockImplementation(hang);
         const pending = expect(fetchNetwork("mainnet")).rejects.toMatchObject({
             name: "TimeoutError",
         });
