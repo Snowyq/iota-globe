@@ -35,6 +35,6 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# local notes and tooling
 iota-rpc-methods.txt
-
 todo.txt
