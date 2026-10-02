@@ -24,6 +24,7 @@ export function useGlobeClickOutside(
         };
 
         const handler = (e: MouseEvent) => {
+            // A click that ends a drag isn't a click outside.
             const dx = e.clientX - downX;
             const dy = e.clientY - downY;
             if (dx * dx + dy * dy > DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX)
@@ -32,9 +33,8 @@ export function useGlobeClickOutside(
             const target = e.target as Element;
             if (!target.isConnected) return;
             if (!ref.current || ref.current.contains(target)) return;
-            // if clicked other globe marker do nothing
+            // Markers handle their own clicks; only the bare canvas closes.
             if (target.closest("[data-globe-marker]")) return;
-            // if clicked outside globe canvas do nothing
             if (target !== getCanvas()) return;
             callback();
         };

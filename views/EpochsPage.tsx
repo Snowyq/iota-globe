@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import {
     EmptyState,
+    ErrorBanner,
     Metric,
     compact,
     nano,
@@ -23,17 +24,17 @@ import { EpochProgress } from "@/features/dashboard/EpochProgress";
 import { NetworkContext } from "@/features/network/NetworkContext";
 import { OptionsContext } from "@/features/options/OptionsContext";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
-import { formatDuration } from "@/lib/format";
-import {
-    ArrowLeft,
-    ArrowLeftRight,
-    ArrowRight,
-    Coins,
-    Layers3,
-    Timer,
-    WifiOff,
-} from "lucide-react";
+import { formatDuration, formatUtc } from "@/lib/format";
+import { withTimeout } from "@/lib/utils";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
+
+const iotaAmount = (value: string | null) =>
+    value == null
+        ? "—"
+        : (Number(value) / 1e9).toLocaleString("en-US", {
+              maximumFractionDigits: 2,
+          });
 
 export default function EpochsPage() {
     const { network } = useContext(OptionsContext);
@@ -56,7 +57,7 @@ export default function EpochsPage() {
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [hasNext, setHasNext] = useState(false);
     const [retry, setRetry] = useState(0);
-    // A cursor belongs to its dataset. Never request a new network with an old cursor.
+    // Cursors are per network; never reuse one after switching.
     const pageIndex = pagination.network === network ? pagination.pageIndex : 0;
     const cursors =
         pagination.network === network ? pagination.cursors : [null];
@@ -70,12 +71,7 @@ export default function EpochsPage() {
         setHasNext(false);
         fetch(
             `/api/epochs?dataset=${network}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
-            {
-                signal: AbortSignal.any([
-                    controller.signal,
-                    AbortSignal.timeout(20_000),
-                ]),
-            }
+            { signal: withTimeout(controller.signal, 20_000) }
         )
             .then(async (response) => {
                 if (!response.ok) throw new Error("Failed to load epochs");
@@ -110,7 +106,7 @@ export default function EpochsPage() {
         <Page>
             <PageHeader
                 title="Epoch history"
-                description="Explore the rhythm of the network, one epoch at a time."
+                description="Completed epochs with their transactions, staking rewards and storage flows."
             />
             <div className="page-summary">
                 <Metric
@@ -118,15 +114,12 @@ export default function EpochsPage() {
                     isLoading={validatorsLoading && !networkStats}
                     value={networkStats ? `#${networkStats.epoch}` : null}
                     detail="Current network cycle"
-                    icon={Layers3}
                 />
                 <Metric
                     label="Last epoch transactions"
                     isLoading={networkLoading && !networkMetrics}
                     value={compact(lastEpochTransactions)}
                     detail="Most recently completed epoch"
-                    icon={ArrowLeftRight}
-                    tone="purple"
                 />
                 <Metric
                     label="Last epoch rewards"
@@ -136,8 +129,6 @@ export default function EpochsPage() {
                     )}
                     unit="IOTA"
                     detail="Distributed staking rewards"
-                    icon={Coins}
-                    tone="teal"
                 />
                 <Metric
                     label="Epoch duration"
@@ -154,24 +145,18 @@ export default function EpochsPage() {
                             ? `Checkpoint #${Number(networkMetrics.currentCheckpoint).toLocaleString("en-US")}`
                             : "Awaiting system state"
                     }
-                    icon={Timer}
-                    tone="amber"
                 />
             </div>
             <div className="epoch-page-progress">
                 <EpochProgress />
             </div>
             {error && (
-                <div className="error-banner" role="alert">
-                    <WifiOff size={16} />
-                    <span>{error}</span>
-                    <button
-                        className="subtle-button ml-auto"
-                        onClick={() => setRetry((r) => r + 1)}
-                    >
-                        Retry
-                    </button>
-                </div>
+                <ErrorBanner
+                    role="alert"
+                    onRetry={() => setRetry((r) => r + 1)}
+                >
+                    {error}
+                </ErrorBanner>
             )}
             <EpochHistoryChart
                 epochs={epochs}
@@ -204,7 +189,7 @@ export default function EpochsPage() {
                         }
                     />
                 ) : (
-                    <Table>
+                    <Table className="stack-table">
                         <TableCaption>
                             Amounts in IOTA. The current epoch is still
                             accumulating transactions and rewards.
@@ -239,7 +224,7 @@ export default function EpochsPage() {
                             {epochs.map((epoch) => (
                                 <TableRow key={epoch.epoch}>
                                     <TableCell>
-                                        <span className="font-medium text-[#c1b7f3]">
+                                        <span className="font-mono font-medium text-primary">
                                             #{epoch.epoch}
                                         </span>
                                         {epoch.epochEndTimestamp == null && (
@@ -248,53 +233,42 @@ export default function EpochsPage() {
                                             </span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell
+                                        data-label="Transactions"
+                                        className="text-right tabular-nums"
+                                    >
                                         {Number(
                                             epoch.totalTransactions
                                         ).toLocaleString("en-US")}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                        {epoch.stakeRewardsNano == null
-                                            ? "—"
-                                            : (
-                                                  Number(
-                                                      epoch.stakeRewardsNano
-                                                  ) / 1e9
-                                              ).toLocaleString("en-US", {
-                                                  maximumFractionDigits: 2,
-                                              })}
+                                    <TableCell
+                                        data-label="Rewards (IOTA)"
+                                        className="text-right tabular-nums"
+                                    >
+                                        {iotaAmount(epoch.stakeRewardsNano)}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell
+                                        data-label="Last checkpoint"
+                                        className="text-right tabular-nums"
+                                    >
                                         {epoch.lastCheckpointId == null
                                             ? "—"
                                             : Number(
                                                   epoch.lastCheckpointId
                                               ).toLocaleString("en-US")}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                        {epoch.storageNetInflowNano == null
-                                            ? "—"
-                                            : (
-                                                  Number(
-                                                      epoch.storageNetInflowNano
-                                                  ) / 1e9
-                                              ).toLocaleString("en-US", {
-                                                  maximumFractionDigits: 2,
-                                              })}
+                                    <TableCell
+                                        data-label="Storage inflow"
+                                        className="text-right tabular-nums"
+                                    >
+                                        {iotaAmount(epoch.storageNetInflowNano)}
                                     </TableCell>
-                                    <TableCell className="text-right text-muted-foreground">
+                                    <TableCell
+                                        data-label="Ended"
+                                        className="text-right text-muted-foreground"
+                                    >
                                         {epoch.epochEndTimestamp
-                                            ? new Date(
-                                                  Number(
-                                                      epoch.epochEndTimestamp
-                                                  )
-                                              ).toLocaleString("en-GB", {
-                                                  day: "2-digit",
-                                                  month: "short",
-                                                  hour: "2-digit",
-                                                  minute: "2-digit",
-                                                  timeZone: "UTC",
-                                              }) + " UTC"
+                                            ? `${formatUtc(Number(epoch.epochEndTimestamp))} UTC`
                                             : "In progress"}
                                     </TableCell>
                                 </TableRow>

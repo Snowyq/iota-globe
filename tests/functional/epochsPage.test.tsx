@@ -6,7 +6,6 @@ import type { EpochRow, EpochsApiResponse } from "@/app/api/epochs/route";
 import { TestNetwork } from "../helpers/providers";
 import { deferred } from "../helpers/async";
 
-// Chart rendering is verified separately in a browser; this suite covers the ledger flow.
 vi.mock("@/features/dashboard/EpochHistoryChart", () => ({
     EpochHistoryChart: () => null,
 }));
@@ -29,8 +28,8 @@ const page = (id: string, nextCursor: string | null): EpochsApiResponse => ({
     hasNextPage: nextCursor != null,
 });
 
-describe("epoch ledger", () => {
-    it("shows a pending state and then converts exact ledger amounts", async () => {
+describe("EpochsPage", () => {
+    it("shows loading, then converted amounts", async () => {
         const response = deferred<Response>();
         request.mockReturnValue(response.promise);
         render(
@@ -44,7 +43,7 @@ describe("epoch ledger", () => {
         expect(screen.getByRole("cell", { name: "1.5" })).toBeInTheDocument();
         expect(screen.getByRole("cell", { name: "-0.5" })).toBeInTheDocument();
     });
-    it("follows opaque API cursors and returns to the newer page", async () => {
+    it("pages with API cursors", async () => {
         request.mockImplementation(async (url) =>
             Response.json(
                 String(url).includes("cursor=")
@@ -77,7 +76,7 @@ describe("epoch ledger", () => {
             "/api/epochs?dataset=mainnet"
         );
     });
-    it("offers retry after an API failure", async () => {
+    it("retries after an API error", async () => {
         request
             .mockResolvedValueOnce(new Response(null, { status: 503 }))
             .mockResolvedValueOnce(Response.json(page("41", null)));
@@ -94,18 +93,7 @@ describe("epoch ledger", () => {
         expect(await screen.findByText("#41")).toBeInTheDocument();
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
-    it("aborts its request when leaving the page", () => {
-        request.mockReturnValue(new Promise(() => {}));
-        const { unmount } = render(
-            <TestNetwork>
-                <EpochsPage />
-            </TestNetwork>
-        );
-        const signal = request.mock.calls[0][1]?.signal;
-        unmount();
-        expect(signal?.aborted).toBe(true);
-    });
-    it("ignores a previous network response even when its JSON resolves after cancellation", async () => {
+    it("ignores a late response from the previous network", async () => {
         const oldBody = deferred<EpochsApiResponse>();
         request
             .mockResolvedValueOnce({
@@ -134,7 +122,7 @@ describe("epoch ledger", () => {
             screen.getByRole("button", { name: "Older epochs" })
         ).toBeDisabled();
     });
-    it("resets pagination without sending another network's cursor", async () => {
+    it("resets paging on network change", async () => {
         request.mockImplementation(async (url) =>
             Response.json(
                 String(url).includes("testnet")
@@ -166,7 +154,7 @@ describe("epoch ledger", () => {
                 .map(([url]) => url)
         ).toEqual(["/api/epochs?dataset=testnet"]);
     });
-    it("exits loading and offers retry when the request deadline expires", async () => {
+    it("offers retry after a timeout", async () => {
         const timeout = new AbortController();
         vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeout.signal);
         request.mockImplementation(

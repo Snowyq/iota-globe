@@ -26,8 +26,8 @@ const transaction = (
     ...overrides,
 });
 
-describe("transaction feed", () => {
-    it("freezes the visible snapshot while paused and shows buffered activity on resume", async () => {
+describe("TransactionsPage", () => {
+    it("buffers while paused and shows it on resume", async () => {
         const user = userEvent.setup();
         render(
             <TestNetwork>
@@ -44,7 +44,7 @@ describe("transaction feed", () => {
         expect(screen.getByText("tx-new")).toBeInTheDocument();
         expect(screen.getByText("tx-first")).toBeInTheDocument();
     });
-    it("combines transaction type filtering with digest and sender searches", async () => {
+    it("filters by type and searches by sender", async () => {
         const user = userEvent.setup();
         render(
             <TestNetwork>
@@ -75,7 +75,7 @@ describe("transaction feed", () => {
             screen.getByText("No transactions match your search.")
         ).toBeInTheDocument();
     });
-    it("deduplicates received events", () => {
+    it("deduplicates events", () => {
         render(
             <TestNetwork>
                 <TransactionsPage />

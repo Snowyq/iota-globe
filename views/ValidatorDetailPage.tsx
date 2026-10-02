@@ -6,23 +6,17 @@ import { PageHeader } from "@/components/PageHeader";
 import { ValidatorAvatar } from "@/components/ValidatorAvatar";
 import {
     EmptyState,
+    ErrorBanner,
     Metric,
     Panel,
     PanelHeader,
+    RetryButton,
     compact,
     nano,
 } from "@/features/dashboard/DashboardPrimitives";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
-import {
-    ArrowLeft,
-    ArrowUpRight,
-    Coins,
-    Globe2,
-    MapPin,
-    Percent,
-    ShieldCheck,
-    TrendingUp,
-} from "lucide-react";
+import { totalStake } from "@/features/validators/stats";
+import { ArrowLeft, ArrowUpRight, MapPin, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useContext, useEffect } from "react";
@@ -70,13 +64,10 @@ export default function ValidatorDetailPage() {
                         }
                         action={
                             error ? (
-                                <button
-                                    className="subtle-button"
-                                    disabled={isLoading}
+                                <RetryButton
                                     onClick={refresh}
-                                >
-                                    {isLoading ? "Retrying…" : "Retry"}
-                                </button>
+                                    retrying={isLoading}
+                                />
                             ) : undefined
                         }
                     />
@@ -88,9 +79,12 @@ export default function ValidatorDetailPage() {
     const nextCommission = Number(payload.nextEpochCommissionRate) / 100;
     const nextStake = nano(payload.nextEpochStake);
     const stakeDelta = nextStake == null ? null : nextStake - stats.stakeIOTA;
-    const totalStake = validators.reduce((s, v) => s + v.stats.stakeIOTA, 0);
-    const stakeShare =
-        totalStake > 0 ? (stats.stakeIOTA / totalStake) * 100 : 0;
+    const allStake = totalStake(validators);
+    const stakeShare = allStake > 0 ? (stats.stakeIOTA / allStake) * 100 : 0;
+    const rank =
+        [...validators]
+            .sort((a, b) => b.stats.stakePercent - a.stats.stakePercent)
+            .findIndex((v) => v.iotaAddress === iotaAddress) + 1;
     const url = projectUrl(payload.projectUrl);
     const identity = [
         { label: "Validator address", value: iotaAddress },
@@ -104,16 +98,13 @@ export default function ValidatorDetailPage() {
                 All validators
             </Link>
             {error && (
-                <div className="error-banner" role="status">
-                    <span>{error} Displaying the last available snapshot.</span>
-                    <button
-                        className="subtle-button ml-auto"
-                        disabled={isLoading}
-                        onClick={refresh}
-                    >
-                        {isLoading ? "Retrying…" : "Retry"}
-                    </button>
-                </div>
+                <ErrorBanner
+                    icon={false}
+                    onRetry={refresh}
+                    retrying={isLoading}
+                >
+                    {error} Displaying the last available snapshot.
+                </ErrorBanner>
             )}
             <div className="detail-hero">
                 <ValidatorAvatar
@@ -140,7 +131,7 @@ export default function ValidatorDetailPage() {
                     </div>
                     <p>
                         {payload.description ||
-                            "An independent validator securing the IOTA network."}
+                            "No description published on chain."}
                     </p>
                     {url && (
                         <a
@@ -167,15 +158,12 @@ export default function ValidatorDetailPage() {
                     value={compact(stats.stakeIOTA)}
                     unit="IOTA"
                     detail={`${stakeShare.toFixed(2)}% of active validator stake`}
-                    icon={Coins}
                 />
                 <Metric
                     label="Staking APY"
                     value={stats.apyPercent?.toFixed(2)}
                     unit="%"
                     detail="Reported validator APY"
-                    icon={TrendingUp}
-                    tone="teal"
                 />
                 <Metric
                     label="Commission"
@@ -186,16 +174,12 @@ export default function ValidatorDetailPage() {
                     }
                     unit="%"
                     detail="Effective commission rate"
-                    icon={Percent}
-                    tone="purple"
                 />
                 <Metric
                     label="Voting power"
                     value={stats.stakePercent.toFixed(2)}
                     unit="%"
                     detail="Share of network voting power"
-                    icon={ShieldCheck}
-                    tone="amber"
                 />
             </div>
             <div className="detail-analysis-grid">
@@ -251,8 +235,8 @@ export default function ValidatorDetailPage() {
                 </Panel>
                 <Panel>
                     <PanelHeader
-                        title="Network participation"
-                        description="Stake share within the active validator set"
+                        title="Share of the active set"
+                        description="Stake held against all active validators"
                     />
                     <div className="voting-visual">
                         <div
@@ -260,7 +244,7 @@ export default function ValidatorDetailPage() {
                             role="img"
                             aria-label={`${stakeShare.toFixed(2)} percent of total active stake`}
                             style={{
-                                background: `conic-gradient(#a99bff 0% ${stakeShare}%, #283349 ${stakeShare}% 100%)`,
+                                background: `conic-gradient(var(--accent) 0% ${stakeShare}%, var(--raised) ${stakeShare}% 100%)`,
                             }}
                         >
                             <div>
@@ -272,12 +256,17 @@ export default function ValidatorDetailPage() {
                             </div>
                         </div>
                         <div className="voting-description">
-                            <Globe2 size={20} strokeWidth={1.3} />
-                            <strong>One part of a global network.</strong>
+                            <strong>
+                                Rank {rank} of {validators.length} by voting
+                                power
+                            </strong>
                             <p>
-                                {payload.name} participates alongside{" "}
-                                {Math.max(0, validators.length - 1)} other
-                                active validators.
+                                {payload.name} carries{" "}
+                                {stats.stakePercent.toFixed(2)}% of the votes
+                                that certify each checkpoint.{" "}
+                                {validator.isCommitteeMember
+                                    ? "It signs in the current committee."
+                                    : "It is outside the current committee."}
                             </p>
                         </div>
                     </div>

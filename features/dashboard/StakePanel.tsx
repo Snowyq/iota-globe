@@ -3,153 +3,138 @@
 import { useContext } from "react";
 import Link from "next/link";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
+import { nakamotoCoefficient, totalStake } from "@/features/validators/stats";
 import { SkeletonBlock } from "@/components/Loading";
 import {
     EmptyState,
     Panel,
     PanelHeader,
+    RetryButton,
     TextLink,
     compact,
 } from "./DashboardPrimitives";
 
-const COLORS = ["#a99bff", "#7e9bff", "#63c9d5", "#5680b9", "#364257"];
+// Leads with the Nakamoto coefficient, then the spread of voting power.
 export function StakePanel() {
     const { validators, isLoading, error, refresh } =
         useContext(ValidatorsContext);
     const sorted = [...validators].sort(
-        (a, b) => b.stats.stakeIOTA - a.stats.stakeIOTA
+        (a, b) => b.stats.stakePercent - a.stats.stakePercent
     );
-    const total = validators.reduce((sum, v) => sum + v.stats.stakeIOTA, 0);
-    const top = sorted.slice(0, 4).map((v) => ({
-        name: v.payload.name,
-        stake: v.stats.stakeIOTA,
-        href: `/validators/${v.iotaAddress}`,
-    }));
-    const other = sorted
-        .slice(4)
-        .reduce((sum, v) => sum + v.stats.stakeIOTA, 0);
-    const segments = [
-        ...top,
-        ...(other
-            ? [{ name: "Other validators", stake: other, href: "/validators" }]
-            : []),
-    ];
-    let cursor = 0;
-    const gradient = segments
-        .map((s, i) => {
-            const start = cursor;
-            cursor += total ? (s.stake / total) * 100 : 0;
-            return `${COLORS[i]} ${start}% ${cursor}%`;
-        })
-        .join(", ");
+    const staked = totalStake(validators);
+    const totalPower = sorted.reduce((s, v) => s + v.stats.stakePercent, 0);
+    const nakamoto = nakamotoCoefficient(
+        sorted.map((v) => v.stats.stakePercent)
+    );
+    const haltingShare = nakamoto
+        ? sorted
+              .slice(0, nakamoto)
+              .reduce((s, v) => s + v.stats.stakePercent, 0)
+        : 0;
     const loading = isLoading && !validators.length;
     return (
         <Panel className="stake-panel" aria-busy={loading}>
             <PanelHeader
-                title="Stake distribution"
-                description="Delegated across the network"
-                action={<TextLink href="/validators">Explore</TextLink>}
+                title="Consensus power"
+                description="Voting power across the committee"
+                action={<TextLink href="/validators">Validators</TextLink>}
             />
-            <div className="stake-content">
-                {loading ? (
-                    <>
-                        <span className="sr-only" role="status">
-                            Loading stake distribution
-                        </span>
-                        <div
-                            key="donut"
-                            className="stake-donut is-loading"
-                            aria-hidden="true"
-                        >
-                            <div>
-                                <SkeletonBlock className="skeleton-donut-label" />
-                                <SkeletonBlock className="skeleton-donut-value" />
-                                <SkeletonBlock className="skeleton-donut-unit" />
-                            </div>
-                        </div>
-                        <div
-                            key="legend"
-                            className="stake-legend"
-                            aria-hidden="true"
-                        >
-                            {Array.from({ length: 5 }, (_, i) => (
-                                <div className="stake-legend-row" key={i}>
+            {loading ? (
+                <div className="stake-content" aria-hidden="true">
+                    <span className="sr-only" role="status">
+                        Loading consensus power
+                    </span>
+                    <SkeletonBlock className="skeleton-nakamoto" />
+                    <SkeletonBlock className="skeleton-power-bar" />
+                    {Array.from({ length: 5 }, (_, i) => (
+                        <SkeletonBlock key={i} className="skeleton-power-row" />
+                    ))}
+                </div>
+            ) : !totalPower ? (
+                <EmptyState
+                    error={!!error}
+                    title={
+                        error
+                            ? "Stake data unavailable"
+                            : "No voting power reported"
+                    }
+                    description={
+                        error ?? "No voting power is reported for this network."
+                    }
+                    action={
+                        error ? (
+                            <RetryButton onClick={refresh} label="Try again" />
+                        ) : undefined
+                    }
+                />
+            ) : (
+                <div className="stake-content">
+                    <div className="nakamoto">
+                        <strong>{nakamoto ?? "—"}</strong>
+                        <p>
+                            validators hold{" "}
+                            <b>
+                                {((haltingShare / totalPower) * 100).toFixed(1)}
+                                %
+                            </b>{" "}
+                            of voting power — more than the third needed to halt
+                            consensus.
+                        </p>
+                    </div>
+                    <div
+                        className="power-bar"
+                        role="img"
+                        aria-label={`Voting power of ${sorted.length} validators. The largest ${nakamoto} together exceed one third.`}
+                    >
+                        {sorted.map((v, i) => (
+                            <span
+                                key={v.iotaAddress}
+                                className={
+                                    nakamoto && i < nakamoto
+                                        ? "is-halting"
+                                        : undefined
+                                }
+                                style={{
+                                    width: `${(v.stats.stakePercent / totalPower) * 100}%`,
+                                }}
+                            />
+                        ))}
+                        <i className="power-third" aria-hidden="true" />
+                    </div>
+                    <div className="power-scale" aria-hidden="true">
+                        <span>0</span>
+                        <span>⅓ halt</span>
+                        <span>⅔ quorum</span>
+                        <span>100%</span>
+                    </div>
+                    <ol className="power-list">
+                        {sorted.slice(0, 12).map((v, i) => (
+                            <li key={v.iotaAddress}>
+                                <Link href={`/validators/${v.iotaAddress}`}>
                                     <span
-                                        className="legend-dot"
-                                        style={{ background: "#344157" }}
+                                        className={`power-swatch ${nakamoto && i < nakamoto ? "is-halting" : ""}`}
+                                        aria-hidden="true"
                                     />
-                                    <SkeletonBlock className="skeleton-legend-name" />
-                                    <SkeletonBlock className="skeleton-legend-value" />
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                ) : !total ? (
-                    <EmptyState
-                        error={!!error}
-                        title={
-                            error
-                                ? "Stake data unavailable"
-                                : "No stake reported"
-                        }
-                        description={
-                            error ??
-                            "No stake balances are available for this network."
-                        }
-                        action={
-                            error ? (
-                                <button
-                                    className="subtle-button"
-                                    onClick={refresh}
-                                >
-                                    Try again
-                                </button>
-                            ) : undefined
-                        }
-                    />
-                ) : (
-                    <>
-                        <div
-                            key="donut"
-                            className="stake-donut"
-                            role="img"
-                            aria-label={`${compact(total)} IOTA staked across ${validators.length} validators`}
-                            style={{
-                                background: `conic-gradient(from 220deg, ${gradient})`,
-                            }}
-                        >
-                            <div>
-                                <span>Total staked</span>
-                                <strong>{compact(total)}</strong>
-                                <small>IOTA</small>
-                            </div>
-                        </div>
-                        <div key="legend" className="stake-legend">
-                            {segments.map((s, i) => (
-                                <Link
-                                    className="stake-legend-row"
-                                    href={s.href}
-                                    key={s.href}
-                                >
-                                    <span
-                                        className="legend-dot"
-                                        style={{ background: COLORS[i] }}
-                                    />
-                                    <span>{s.name}</span>
-                                    <b>
-                                        {((s.stake / total) * 100).toFixed(1)}
-                                        <small>%</small>
-                                    </b>
+                                    <span className="power-name">
+                                        {v.payload.name}
+                                    </span>
+                                    <span className="power-stake">
+                                        {compact(v.stats.stakeIOTA)}
+                                    </span>
+                                    <b>{v.stats.stakePercent.toFixed(2)}%</b>
                                 </Link>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            )}
             <div className="panel-bottom-note">
-                {error && total
-                    ? "Last available stake snapshot"
-                    : "Stake balance per active validator"}
+                <span>
+                    {error && totalPower
+                        ? "Last available snapshot"
+                        : `${compact(staked)} IOTA staked`}
+                </span>
+                <span>{validators.length} validators</span>
             </div>
         </Panel>
     );

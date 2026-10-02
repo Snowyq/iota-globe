@@ -1,22 +1,10 @@
 "use client";
 
 import type { NetworkApiResponseData } from "@/app/api/network/route";
-import type { TpsStreamItem } from "@/app/api/tps/stream/route";
+import { usePolledSnapshot } from "@/hooks/usePolledSnapshot";
 import { fetchNetwork } from "@/lib/fetch";
-import { useLiveStream, type StreamStatus } from "@/hooks/useLiveStream";
-import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
-import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import { OptionsContext } from "../options/OptionsContext";
+import { createContext, useMemo } from "react";
 
-export type TpsSample = { timestamp: number; tps: number };
 interface NetworkContextValue {
     networkMetrics: NetworkApiResponseData["networkMetrics"] | null;
     addressMetrics: NetworkApiResponseData["addressMetrics"] | null;
@@ -30,8 +18,6 @@ interface NetworkContextValue {
     refresh: () => void;
     error: string | null;
     updatedAt: number | null;
-    samples: TpsSample[];
-    streamStatus: StreamStatus;
 }
 
 export const NetworkContext = createContext<NetworkContextValue>({
@@ -47,8 +33,6 @@ export const NetworkContext = createContext<NetworkContextValue>({
     dataTtl: null,
     error: null,
     updatedAt: null,
-    samples: [],
-    streamStatus: "connecting",
 });
 
 export default function NetworkContextProvider({
@@ -56,73 +40,12 @@ export default function NetworkContextProvider({
 }: {
     children: React.ReactNode;
 }) {
-    const { network } = useContext(OptionsContext);
-    const [refreshKey, setRefreshKey] = useState(0);
-    const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
-    const previousNetworkRef = useRef<string | null>(null);
-    const [data, setData] = useState<NetworkApiResponseData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [dataTtl, setDataTtl] = useState<number | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [updatedAt, setUpdatedAt] = useState<number | null>(null);
-    const [samples, setSamples] = useState<TpsSample[]>([]);
-    useOnNetworkChange(() => setSamples([]));
-    const streamStatus = useLiveStream<TpsStreamItem>(
-        "/api/tps/stream",
-        (item) => {
-            if (!Number.isFinite(item.currentTps)) return;
-            setSamples((prev) =>
-                [
-                    ...prev,
-                    { timestamp: Date.now(), tps: item.currentTps },
-                ].slice(-300)
-            );
-        }
-    );
-
-    useEffect(() => {
-        let cancelled = false;
-        let pending = false;
-        const controller = new AbortController();
-        const networkChanged = previousNetworkRef.current !== network;
-        previousNetworkRef.current = network;
-        if (networkChanged) {
-            setData(null);
-            setUpdatedAt(null);
-            setDataTtl(null);
-        }
-        // A new network or an explicit retry begins a visible request lifecycle.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setIsLoading(true);
-        if (networkChanged) setError(null);
-        const load = async () => {
-            if (pending) return;
-            pending = true;
-            try {
-                const result = await fetchNetwork(network, controller.signal);
-                if (cancelled) return;
-                setData(result.data);
-                setDataTtl(result.ttl);
-                setUpdatedAt(Date.now());
-                setError(null);
-            } catch {
-                if (!cancelled)
-                    setError(
-                        "Unable to reach the network. Retrying automatically."
-                    );
-            } finally {
-                pending = false;
-                if (!cancelled) setIsLoading(false);
-            }
-        };
-        void load();
-        const interval = setInterval(load, 5_000);
-        return () => {
-            cancelled = true;
-            controller.abort();
-            clearInterval(interval);
-        };
-    }, [network, refreshKey]);
+    const { data, ttl, updatedAt, isLoading, error, refresh } =
+        usePolledSnapshot(
+            fetchNetwork,
+            5_000,
+            "Unable to reach the network. Retrying automatically."
+        );
 
     const value = useMemo(
         () => ({
@@ -135,22 +58,11 @@ export default function NetworkContextProvider({
             totalTransactions: data?.totalTransactions ?? null,
             lastEpochTransactions: data?.lastEpochTransactions ?? null,
             isLoading,
-            dataTtl,
+            dataTtl: ttl,
             error,
             updatedAt,
-            samples,
-            streamStatus,
         }),
-        [
-            data,
-            isLoading,
-            dataTtl,
-            error,
-            updatedAt,
-            samples,
-            streamStatus,
-            refresh,
-        ]
+        [data, isLoading, ttl, error, updatedAt, refresh]
     );
     return (
         <NetworkContext.Provider value={value}>

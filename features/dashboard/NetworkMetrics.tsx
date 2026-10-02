@@ -1,17 +1,9 @@
 "use client";
 
 import { useContext } from "react";
-import {
-    Activity,
-    Box,
-    Code2,
-    Coins,
-    Layers3,
-    ShieldCheck,
-    Users,
-} from "lucide-react";
 import { NetworkContext } from "@/features/network/NetworkContext";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
+import { meanApy, totalStake } from "@/features/validators/stats";
 import {
     Metric,
     Panel,
@@ -33,78 +25,59 @@ export function NetworkMetrics() {
         networkStats,
         isLoading: validatorsLoading,
     } = useContext(ValidatorsContext);
-    const totalStake = networkStats
-        ? validators.reduce((s, v) => s + v.stats.stakeIOTA, 0)
-        : null;
-    const apys = validators.flatMap((v) =>
-        v.stats.apyPercent == null ? [] : [v.stats.apyPercent]
-    );
-    const averageApy = apys.length
-        ? apys.reduce((a, b) => a + b, 0) / apys.length
-        : null;
+    const staked = networkStats ? totalStake(validators) : null;
+    const averageApy = meanApy(validators);
+    const committee = validators.filter((v) => v.isCommitteeMember).length;
     return (
         <div className="metrics-grid">
             <Metric
-                label="Total transactions"
+                label="Transactions, all time"
                 isLoading={networkLoading && !networkMetrics}
                 value={compact(totalTransactions)}
                 detail={
                     <>
-                        <span className="detail-dot" />
-                        {compact(lastEpochTransactions)} in last epoch
+                        <b>+{compact(lastEpochTransactions)}</b> in the last
+                        epoch
                     </>
                 }
-                icon={Activity}
             />
             <Metric
-                label="Total staked"
+                // Unit in the label so long values fit the narrow rail.
+                label="Staked, IOTA"
                 isLoading={validatorsLoading && !networkStats}
-                value={compact(totalStake)}
-                unit="IOTA"
+                value={compact(staked)}
                 detail={
                     <>
-                        Average APY{" "}
-                        <span className="text-lavender">
-                            {averageApy?.toFixed(2) ?? "—"}%
-                        </span>
+                        Mean APY <b>{averageApy?.toFixed(2) ?? "—"}%</b>
                     </>
                 }
-                icon={Coins}
-                tone="purple"
             />
             <Metric
-                label="Active validators"
+                label="Validators"
                 isLoading={validatorsLoading && !networkStats}
                 value={networkStats ? validators.length : null}
                 detail={
                     <>
-                        <span className="detail-dot teal" />
-                        {networkStats
-                            ? validators.filter((v) => v.isCommitteeMember)
-                                  .length
-                            : "—"}{" "}
-                        committee members
+                        <b>{networkStats ? committee : "—"}</b> in the signing
+                        committee
                     </>
                 }
-                icon={ShieldCheck}
-                tone="teal"
             />
             <Metric
-                label="Total addresses"
+                label="Addresses"
                 isLoading={networkLoading && !networkMetrics}
                 value={compact(addressMetrics?.cumulativeAddresses)}
                 detail={
                     <>
-                        {compact(addressMetrics?.dailyActiveAddresses)} active
-                        today
+                        <b>{compact(addressMetrics?.dailyActiveAddresses)}</b>{" "}
+                        active today
                     </>
                 }
-                icon={Users}
-                tone="amber"
             />
         </div>
     );
 }
+
 export function NetworkResources() {
     const {
         networkMetrics,
@@ -115,47 +88,46 @@ export function NetworkResources() {
     const { networkStats } = useContext(ValidatorsContext);
     const items = [
         {
-            label: "Move packages",
-            value: compact(networkMetrics?.totalPackages),
-            icon: Code2,
-        },
-        {
-            label: "On-chain objects",
-            value: compact(networkMetrics?.totalObjects),
-            icon: Box,
-        },
-        {
             label: "Circulating supply",
-            value: `${compact(nano(circulatingSupply?.value))} IOTA`,
-            icon: Coins,
+            value: compact(nano(circulatingSupply?.value)),
+            unit: "IOTA",
         },
         {
             label: "Total supply",
-            value: `${compact(nano(networkStats?.iotaTotalSupply))} IOTA`,
-            icon: Layers3,
+            value: compact(nano(networkStats?.iotaTotalSupply)),
+            unit: "IOTA",
+        },
+        { label: "Delegators", value: compact(totalDelegators) },
+        {
+            label: "Move packages",
+            value: compact(networkMetrics?.totalPackages),
         },
         {
-            label: "Active addresses, all time",
-            value: compact(addressMetrics?.cumulativeActiveAddresses),
-            icon: Activity,
+            label: "Live objects",
+            value: compact(networkMetrics?.totalObjects),
         },
-        { label: "Delegators", value: compact(totalDelegators), icon: Users },
+        {
+            label: "Addresses ever active",
+            value: compact(addressMetrics?.cumulativeActiveAddresses),
+        },
     ];
     return (
         <Panel className="resources-panel">
             <PanelHeader
-                title="Network at a glance"
-                description="The building blocks of the IOTA ecosystem"
+                title="Ledger state"
+                description="Supply, delegation and what lives on chain"
             />
-            <div className="resources-grid">
-                {items.map(({ label, value, icon: Icon }) => (
+            <dl className="resources-grid">
+                {items.map(({ label, value, unit }) => (
                     <div key={label}>
-                        <Icon size={17} strokeWidth={1.5} />
-                        <span>{label}</span>
-                        <strong>{value}</strong>
+                        <dt>{label}</dt>
+                        <dd>
+                            {value}
+                            {unit && value !== "—" && <small>{unit}</small>}
+                        </dd>
                     </div>
                 ))}
-            </div>
+            </dl>
         </Panel>
     );
 }

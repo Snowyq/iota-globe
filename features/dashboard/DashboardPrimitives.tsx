@@ -1,7 +1,6 @@
 "use client";
 
 import { SkeletonBlock } from "@/components/Loading";
-import type { LucideIcon } from "lucide-react";
 import { ArrowUpRight, Radio, WifiOff } from "lucide-react";
 import Link from "next/link";
 import type { StreamStatus } from "@/hooks/useLiveStream";
@@ -56,26 +55,17 @@ export function Metric({
     value,
     unit,
     detail,
-    icon: Icon,
-    tone = "blue",
     isLoading = false,
 }: {
     label: string;
     value: React.ReactNode;
     unit?: string;
     detail: React.ReactNode;
-    icon: LucideIcon;
-    tone?: "blue" | "purple" | "teal" | "amber";
     isLoading?: boolean;
 }) {
     return (
-        <div className={`metric-card tone-${tone}`} aria-busy={isLoading}>
-            <div className="metric-top">
-                <span>{label}</span>
-                <span className="metric-icon">
-                    <Icon size={17} strokeWidth={1.7} />
-                </span>
-            </div>
+        <div className="metric-card" aria-busy={isLoading}>
+            <span className="metric-label">{label}</span>
             <div className="metric-value">
                 {isLoading ? (
                     <>
@@ -87,7 +77,7 @@ export function Metric({
                 ) : (
                     <>
                         {value ?? "—"}
-                        <span>{unit}</span>
+                        {unit && <span>{unit}</span>}
                     </>
                 )}
             </div>
@@ -140,6 +130,55 @@ export function EmptyState({
             <strong>{title}</strong>
             <p>{description}</p>
             {action}
+        </div>
+    );
+}
+export function RetryButton({
+    onClick,
+    retrying,
+    label = "Retry",
+    className,
+}: {
+    onClick: () => void;
+    retrying?: boolean;
+    label?: string;
+    className?: string;
+}) {
+    return (
+        <button
+            className={cn("subtle-button", className)}
+            disabled={retrying}
+            onClick={onClick}
+        >
+            {retrying ? "Retrying…" : label}
+        </button>
+    );
+}
+export function ErrorBanner({
+    children,
+    onRetry,
+    retrying,
+    retryLabel,
+    role = "status",
+    icon = true,
+}: {
+    children: React.ReactNode;
+    onRetry: () => void;
+    retrying?: boolean;
+    retryLabel?: string;
+    role?: "status" | "alert";
+    icon?: boolean;
+}) {
+    return (
+        <div className="error-banner" role={role}>
+            {icon && <WifiOff size={16} />}
+            <span>{children}</span>
+            <RetryButton
+                className="ml-auto"
+                onClick={onRetry}
+                retrying={retrying}
+                label={retryLabel}
+            />
         </div>
     );
 }

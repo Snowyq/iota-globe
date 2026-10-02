@@ -22,18 +22,12 @@ import {
 } from "@/features/dashboard/DashboardPrimitives";
 import { ThroughputChart } from "@/features/dashboard/ThroughputChart";
 import { NetworkContext } from "@/features/network/NetworkContext";
+import { useThroughputSamples } from "@/features/network/CheckpointStream";
 import { useLiveStream } from "@/hooks/useLiveStream";
 import { useNowTime } from "@/hooks/useNowTime";
 import { useOnNetworkChange } from "@/hooks/useOnNetworkChange";
 import { shortString, timeAgo } from "@/lib/format";
-import {
-    Activity,
-    ArrowLeftRight,
-    Coins,
-    Layers3,
-    Pause,
-    Play,
-} from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { useContext, useState } from "react";
 
 const MAX_ITEMS = 100;
@@ -41,9 +35,9 @@ export default function TransactionsPage() {
     const {
         totalTransactions,
         networkMetrics,
-        samples,
         isLoading: networkLoading,
     } = useContext(NetworkContext);
+    const { samples } = useThroughputSamples();
     const [txs, setTxs] = useState<TransactionStreamItem[]>([]);
     const [snapshot, setSnapshot] = useState<TransactionStreamItem[] | null>(
         null
@@ -80,7 +74,7 @@ export default function TransactionsPage() {
         <Page>
             <PageHeader
                 title="Transactions"
-                description="Follow the latest activity as it moves through the network."
+                description="Transactions sampled from the newest checkpoints as they are certified."
                 action={<StreamBadge status={status} />}
             />
             <div className="page-summary">
@@ -89,7 +83,6 @@ export default function TransactionsPage() {
                     isLoading={networkLoading && !networkMetrics}
                     value={compact(totalTransactions)}
                     detail="All-time network transactions"
-                    icon={ArrowLeftRight}
                 />
                 <Metric
                     label="Current throughput"
@@ -97,8 +90,6 @@ export default function TransactionsPage() {
                     value={samples.at(-1)?.tps.toFixed(2)}
                     unit="tx/s"
                     detail="Latest live sample"
-                    icon={Activity}
-                    tone="purple"
                 />
                 <Metric
                     label="Current checkpoint"
@@ -109,19 +100,15 @@ export default function TransactionsPage() {
                             : null
                     }
                     detail="Latest network snapshot"
-                    icon={Layers3}
-                    tone="teal"
                 />
                 <Metric
-                    label="Average gas, received sample"
+                    label="Mean gas, sample"
                     isLoading={
                         !visible.length && !snapshot && status === "connecting"
                     }
                     value={averageGas?.toFixed(4)}
                     unit="IOTA"
                     detail={`From ${visible.length} received transactions`}
-                    icon={Coins}
-                    tone="amber"
                 />
             </div>
             <ThroughputChart />
@@ -185,7 +172,7 @@ export default function TransactionsPage() {
                         }
                     />
                 ) : (
-                    <Table>
+                    <Table className="stack-table">
                         <TableCaption>
                             {snapshot ? "Feed paused. " : ""}Showing{" "}
                             {filtered.length} of the last {visible.length}{" "}
@@ -216,7 +203,7 @@ export default function TransactionsPage() {
                                         <TableRow key={tx.digest}>
                                             <TableCell>
                                                 <span
-                                                    className="inline-flex items-center gap-2 font-mono text-[#bdc5eb]"
+                                                    className="inline-flex items-center gap-2 font-mono text-foreground"
                                                     title={tx.digest}
                                                 >
                                                     {shortString(
@@ -230,7 +217,7 @@ export default function TransactionsPage() {
                                                     />
                                                 </span>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell data-label="Sender">
                                                 {tx.isSystem ? (
                                                     <span className="text-muted-foreground">
                                                         IOTA System
@@ -252,7 +239,7 @@ export default function TransactionsPage() {
                                                     </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell data-label="Type">
                                                 <span
                                                     className={`transaction-type ${tx.isSystem ? "system" : ""}`}
                                                 >
@@ -261,13 +248,22 @@ export default function TransactionsPage() {
                                                         : "User"}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="text-right tabular-nums">
+                                            <TableCell
+                                                data-label="Ops"
+                                                className="text-right tabular-nums"
+                                            >
                                                 {tx.txnsCount ?? "—"}
                                             </TableCell>
-                                            <TableCell className="text-right tabular-nums">
+                                            <TableCell
+                                                data-label="Gas (IOTA)"
+                                                className="text-right tabular-nums"
+                                            >
                                                 {tx.gasIOTA.toFixed(5)}
                                             </TableCell>
-                                            <TableCell className="text-right text-muted-foreground tabular-nums">
+                                            <TableCell
+                                                data-label="Age"
+                                                className="text-right text-muted-foreground tabular-nums"
+                                            >
                                                 {t.value} {t.label}
                                             </TableCell>
                                         </TableRow>

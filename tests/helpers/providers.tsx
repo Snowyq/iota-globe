@@ -49,7 +49,6 @@ export function globeContext(
         onGlobeDispose: vi.fn(),
         moveGlobeTo: vi.fn(),
         zoomGlobe: vi.fn(),
-        startSpinning: vi.fn(),
         setAutoRotate: vi.fn(),
         isRotating: false,
         resetGlobe: vi.fn(),

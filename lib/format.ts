@@ -51,14 +51,6 @@ export function formatNanoToIota(
     return formatIota(Number(BigInt(nano)) / NANO, prefix, decimals);
 }
 
-export function formatIotaNano(
-    nano: string | null | undefined
-): IotaFormatResult {
-    if (!nano) return { value: "—", label: "", raw: 0 };
-    const n = Number(nano);
-    return { value: n.toLocaleString(), label: "nanos", raw: n };
-}
-
 export function formatDuration(ms: number | null | undefined): string {
     if (ms === null || ms === undefined) return "—";
     if (ms <= 0) return "0s";
@@ -101,15 +93,20 @@ export function formatTimestamp(
     return `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+/** Day, month and time in UTC, e.g. "07 Nov, 14:05". */
+export function formatUtc(ms: number): string {
+    return new Date(ms).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+    });
+}
+
 export function shortString(s: string, head = 6, tail = 0): string {
     if (s.length <= head + Math.max(0, tail)) return s;
     return s.slice(0, head) + "..." + (tail > 0 ? s.slice(-tail) : "");
-}
-
-export function formatTtl(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60_000) return `${ms / 1000}s`;
-    return `${ms / 60_000}m`;
 }
 
 export function formatApy(apy: number | null | undefined): IotaFormatResult {

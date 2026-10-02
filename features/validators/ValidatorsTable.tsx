@@ -49,8 +49,8 @@ const COLUMNS: {
     { key: "stake", label: "Stake", align: "right" },
     { key: "apy", label: "APY", align: "right" },
     { key: "commission", label: "Commission", align: "right" },
-    { key: "votingPower", label: "Voting Power", align: "right" },
-    { key: "lastReward", label: "Last Epoch Reward", align: "right" },
+    { key: "votingPower", label: "Voting power", align: "right" },
+    { key: "lastReward", label: "Last reward", align: "right" },
 ];
 
 export default function ValidatorsTable({
@@ -128,7 +128,30 @@ export default function ValidatorsTable({
 
     return (
         <>
-            <Table className="relative h-fit w-full">
+            <div className="mobile-sort" aria-label="Sort validators">
+                {COLUMNS.map(({ key, label }) => {
+                    const active = sortKey === key;
+                    return (
+                        <button
+                            key={key}
+                            aria-pressed={active}
+                            onClick={() => handleSort(key)}
+                        >
+                            {label}
+                            {active &&
+                                (sortDir === "asc" ? (
+                                    <ArrowUp size={11} aria-label="ascending" />
+                                ) : (
+                                    <ArrowDown
+                                        size={11}
+                                        aria-label="descending"
+                                    />
+                                ))}
+                        </button>
+                    );
+                })}
+            </div>
+            <Table className="validators-table stack-table relative h-fit w-full">
                 <TableCaption className="sr-only">
                     Active IOTA validators. Select a validator to explore its
                     details.
@@ -229,21 +252,11 @@ function ValidatorRowSkeleton() {
                     <Skeleton className="h-3 w-24" />
                 </div>
             </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-16" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-12" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-12" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-10" />
-            </TableCell>
-            <TableCell>
-                <Skeleton className="h-3 w-16" />
-            </TableCell>
+            {["w-16", "w-12", "w-12", "w-10", "w-16"].map((width, i) => (
+                <TableCell key={i}>
+                    <Skeleton className={`h-3 ${width}`} />
+                </TableCell>
+            ))}
         </TableRow>
     );
 }
@@ -274,16 +287,16 @@ const ValidatorRow = memo(function ValidatorRow({
             className="cursor-pointer transition-colors"
         >
             <TableCell>
-                <div className="flex items-center gap-3 font-medium">
+                <div className="validator-cell flex items-center gap-3 font-medium">
                     <ValidatorAvatar
                         name={payload.name}
                         imageUrl={payload.imageUrl}
                     />
                     <div>
-                        <span className="block text-xs">
+                        <span className="validator-cell-name block">
                             {shortString(payload.name, 24)}
                         </span>
-                        <span className="mt-1 block text-[10px] text-muted-foreground">
+                        <span className="validator-cell-meta mt-1 block text-muted-foreground">
                             {validator.geo?.country ?? "Location unavailable"}
                             {validator.isAtRisk
                                 ? " · At risk"
@@ -298,18 +311,31 @@ const ValidatorRow = memo(function ValidatorRow({
                 align="right"
                 value={stake.value}
                 label={stake.label}
+                dataLabel="Stake"
             />
-            <FormattedCell align="right" value={apy.value} label={apy.label} />
+            <FormattedCell
+                align="right"
+                value={apy.value}
+                label={apy.label}
+                dataLabel="APY"
+            />
             <FormattedCell
                 align="right"
                 value={commission.value}
                 label={commission.label}
+                dataLabel="Comm."
             />
-            <FormattedCell align="right" value={stats.stakePercent} label="%" />
+            <FormattedCell
+                align="right"
+                value={stats.stakePercent}
+                label="%"
+                dataLabel="Voting"
+            />
             <FormattedCell
                 align="right"
                 value={lastReward.value}
                 label={lastReward.label}
+                dataLabel="Reward"
             />
         </TableRow>
     );

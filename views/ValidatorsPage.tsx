@@ -5,10 +5,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { SearchField } from "@/components/SearchField";
 import { ValidatorsContext } from "@/features/validators/ValidatorsContext";
 import ValidatorsTable from "@/features/validators/ValidatorsTable";
-import { Coins, Globe2, ShieldCheck, TrendingUp, WifiOff } from "lucide-react";
+import { meanApy, totalStake } from "@/features/validators/stats";
 import { useContext, useState } from "react";
 import {
     EmptyState,
+    ErrorBanner,
     Metric,
     Panel,
     PanelHeader,
@@ -25,13 +26,8 @@ export default function ValidatorsPage() {
     const committeeCount = validators.filter((v) => v.isCommitteeMember).length;
     const activeCount = validators.filter((v) => !v.isCommitteeMember).length;
     const atRiskCount = validators.filter((v) => v.isAtRisk).length;
-    const total = validators.reduce((s, v) => s + v.stats.stakeIOTA, 0);
-    const apys = validators.flatMap((v) =>
-        v.stats.apyPercent == null ? [] : [v.stats.apyPercent]
-    );
-    const averageApy = apys.length
-        ? apys.reduce((a, b) => a + b, 0) / apys.length
-        : null;
+    const total = totalStake(validators);
+    const averageApy = meanApy(validators);
     const countries = new Map<string, number>();
     validators.forEach((v) => {
         if (v.geo)
@@ -42,72 +38,85 @@ export default function ValidatorsPage() {
     });
     const topCountries = [...countries].sort((a, b) => b[1] - a[1]).slice(0, 5);
     const located = validators.filter((v) => v.geo).length;
-    const tabs: { id: Tab; label: string; count: number }[] = [
-        { id: "all", label: "All validators", count: validators.length },
-        { id: "committee", label: "Committee", count: committeeCount },
-        { id: "active", label: "Non-committee", count: activeCount },
-        { id: "at-risk", label: "At risk", count: atRiskCount },
+    const tabs: { id: Tab; label: string; short: string; count: number }[] = [
+        {
+            id: "all",
+            label: "All validators",
+            short: "All",
+            count: validators.length,
+        },
+        {
+            id: "committee",
+            label: "Committee",
+            short: "Committee",
+            count: committeeCount,
+        },
+        {
+            id: "active",
+            label: "Non-committee",
+            short: "Other",
+            count: activeCount,
+        },
+        {
+            id: "at-risk",
+            label: "At risk",
+            short: "At risk",
+            count: atRiskCount,
+        },
     ];
+    // Committee first, then by voting power.
+    const seats = [...validators].sort(
+        (a, b) =>
+            Number(b.isCommitteeMember) - Number(a.isCommitteeMember) ||
+            b.stats.stakePercent - a.stats.stakePercent
+    );
+    const committeeShare = validators.length
+        ? (committeeCount / validators.length) * 100
+        : null;
     return (
         <Page>
             <PageHeader
                 title="Validators"
-                description="Meet the independent operators securing the IOTA network."
+                description="Every operator in the active set: stake, yield, commission and where their nodes answer from."
             />
             {error && (
-                <div className="error-banner" role="status">
-                    <WifiOff size={16} />
-                    <span>{error}</span>
-                    <button
-                        className="subtle-button ml-auto"
-                        disabled={isLoading}
-                        onClick={refresh}
-                    >
-                        {isLoading ? "Retrying…" : "Retry"}
-                    </button>
-                </div>
+                <ErrorBanner onRetry={refresh} retrying={isLoading}>
+                    {error}
+                </ErrorBanner>
             )}
             <div className="page-summary">
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Active validators"
+                    label="Active set"
                     value={networkStats ? validators.length : null}
                     detail={`${committeeCount} in the committee`}
-                    icon={ShieldCheck}
-                    tone="blue"
                 />
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Total delegated stake"
+                    label="Delegated stake"
                     value={networkStats ? compact(total) : "—"}
                     unit="IOTA"
                     detail="Across active validators"
-                    icon={Coins}
-                    tone="purple"
                 />
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Average validator APY"
+                    label="Mean APY"
                     value={averageApy?.toFixed(2)}
                     unit="%"
-                    detail="Unweighted network average"
-                    icon={TrendingUp}
-                    tone="teal"
+                    detail="Unweighted across validators"
                 />
                 <Metric
                     isLoading={isLoading && !networkStats}
-                    label="Countries located"
+                    label="Countries"
                     value={networkStats ? countries.size : null}
                     detail={`${located} of ${validators.length} validators geolocated`}
-                    icon={Globe2}
-                    tone="amber"
                 />
             </div>
             <div className="validator-insights">
                 <Panel>
                     <PanelHeader
-                        title="Global footprint"
-                        description="Top countries by validator count · IP estimates"
+                        title="Where validators run"
+                        description="Top countries by node count · IP estimates"
                     />
                     <div className="country-bars">
                         {topCountries.length ? (
@@ -138,26 +147,46 @@ export default function ValidatorsPage() {
                 </Panel>
                 <Panel>
                     <PanelHeader
-                        title="Validator participation"
-                        description="Composition of the current active set"
+                        title="Committee"
+                        description="Who signs checkpoints this epoch"
                     />
                     <div className="participation-chart">
+                        <p className="participation-lead">
+                            <strong>
+                                {networkStats ? committeeCount : "—"}
+                            </strong>
+                            <span>
+                                of {networkStats ? validators.length : "—"}{" "}
+                                validators sign
+                                {committeeShare != null && networkStats && (
+                                    <b> · {committeeShare.toFixed(0)}%</b>
+                                )}
+                            </span>
+                        </p>
                         <div
-                            className="participation-track"
+                            className="participation-seats"
                             role="img"
-                            aria-label={`${committeeCount} committee members and ${activeCount} non-committee validators`}
+                            aria-label={`${committeeCount} committee members, ${activeCount} non-committee validators, ${atRiskCount} flagged at risk`}
                         >
-                            <span
-                                style={{
-                                    width: `${validators.length ? (committeeCount / validators.length) * 100 : 0}%`,
-                                }}
-                            />
+                            {seats.map((v) => (
+                                <i
+                                    key={v.iotaAddress}
+                                    title={`${v.payload.name}${v.isAtRisk ? " · at risk" : v.isCommitteeMember ? " · committee" : ""}`}
+                                    className={
+                                        v.isAtRisk
+                                            ? "is-risk"
+                                            : v.isCommitteeMember
+                                              ? "is-committee"
+                                              : undefined
+                                    }
+                                />
+                            ))}
                         </div>
-                        <div>
+                        <div className="participation-legend">
                             <span>
                                 <i
                                     className="legend-dot"
-                                    style={{ background: "#a99bff" }}
+                                    style={{ background: "var(--accent)" }}
                                 />
                                 Committee members
                                 <strong>
@@ -167,7 +196,7 @@ export default function ValidatorsPage() {
                             <span>
                                 <i
                                     className="legend-dot"
-                                    style={{ background: "#526b91" }}
+                                    style={{ background: "var(--line-strong)" }}
                                 />
                                 Non-committee
                                 <strong>
@@ -177,7 +206,7 @@ export default function ValidatorsPage() {
                             <span>
                                 <i
                                     className="legend-dot"
-                                    style={{ background: "#d3b48d" }}
+                                    style={{ background: "var(--warning)" }}
                                 />
                                 Flagged at risk
                                 <strong>
@@ -185,9 +214,10 @@ export default function ValidatorsPage() {
                                 </strong>
                             </span>
                         </div>
-                        <p>
-                            Committee membership and risk flags come directly
-                            from the current system state.
+                        <p className="participation-note">
+                            One cell per validator, the committee by voting
+                            power. Membership and risk flags come straight from
+                            the current system state.
                         </p>
                     </div>
                 </Panel>
@@ -201,13 +231,16 @@ export default function ValidatorsPage() {
                         onChange={setQuery}
                     />
                     <div className="filter-tabs" aria-label="Filter validators">
-                        {tabs.map(({ id, label, count }) => (
+                        {tabs.map(({ id, label, short, count }) => (
                             <button
                                 key={id}
                                 aria-pressed={tab === id}
                                 onClick={() => setTab(id)}
                             >
-                                {label}
+                                <span className="tab-full">{label}</span>
+                                <span className="tab-short" aria-hidden="true">
+                                    {short}
+                                </span>
                                 <span>{count}</span>
                             </button>
                         ))}

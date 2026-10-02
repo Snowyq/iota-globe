@@ -1,49 +1,89 @@
 # IOTA Globe
 
-A recruitment project inspired by [gmonads.com](https://www.gmonads.com/). An interactive 3D globe showing IOTA network validators.
+[![CI](https://github.com/Snowyq/iota-globe/actions/workflows/ci.yml/badge.svg)](https://github.com/Snowyq/iota-globe/actions/workflows/ci.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
-## LIVE DEMO
+A live observatory for the IOTA network. Validators on a 3D globe or a flat map, every certified checkpoint as it lands, throughput, transactions, stake and epoch history.
 
-- https://iota-globe.vercel.app/
+**[Live demo](https://iota-globe.vercel.app/)**
 
-## What it does
+![Overview](docs/overview.jpg)
 
-- 3D globe with validator locations (marker clustering)
-- Live data fetched from IOTA RPC through a server-side API route (RPC is not exposed to the frontend)
-- Validator list with basic stats (stake, APY, commission)
-- Validator detail view
-- Epochs and transactions pages
-- Live transaction / checkpoints / tps stream via SSE
-- Responsive layout, works on mobile
-- Fullscreen mode for desktops
+<p>
+  <img src="docs/validators.jpg" width="66%" alt="Validator directory" />
+  <img src="public/about/mobile.jpg" width="15.5%" alt="Mobile overview" />
+</p>
 
-## Stack
+## Features
 
-- Next.js 16 / React 19
-- Tailwind CSS v4
-- [react-globe.gl](https://github.com/vasturiano/globe.gl) + Three.js
-- [@iota/iota-sdk](https://www.npmjs.com/package/@iota/iota-sdk)
-- shadcn/ui
+- **Globe and flat map** rendered by Three.js in a Web Worker on an `OffscreenCanvas`, with a pulse for every checkpoint.
+- **Validator search** (`⌘K`) that flies the camera to a validator; clusters open into a searchable inspector.
+- **Live chain strip and throughput** from a checkpoint stream with ~0.4 s lag.
+- **Validators** directory with sorting, filters, pagination and per-validator stake, APY and rewards.
+- **Transactions** feed with sender/digest search, type filters and pause.
+- **Epoch history** with cursor pagination and charts.
+- Mainnet / testnet switch, keyboard navigation, reduced-motion support, phone layout.
 
-## Running locally
+## Architecture
+
+```mermaid
+flowchart LR
+    RPC[(IOTA RPC)] --> API[Next.js API routes]
+    API -->|JSON| Providers[React providers]
+    API -->|SSE: checkpoints, transactions| Streams[Stream hooks]
+    Providers --> UI[Pages and panels]
+    Streams --> UI
+    Providers -->|coordinates| Worker[Globe worker<br/>Three.js + OffscreenCanvas]
+    Worker -->|marker positions| UI
+```
+
+- RPC calls stay on the server. The browser only talks to `/api/*`.
+- One server-side tail per network polls checkpoints and fans them out to every SSE client, so many open tabs cost one poll.
+- Incoming checkpoints are merged into state once per animation frame, so a reconnect backlog is a single render.
+- The worker owns Three.js, the land mask and the camera. React keeps the controls and HTML markers, which are moved with transforms only.
+- Switching networks drops in-flight requests so late responses can't overwrite the new network's data.
+
+## Tech stack
+
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Three.js, Recharts, GSAP + Lenis (about page), IOTA SDK, Vitest + Testing Library.
+
+## Getting started
 
 ```bash
 pnpm install
+cp .env.example .env.local   # public IOTA indexer endpoints
 pnpm dev
 ```
 
-Requires a `.env.local` file:
+## Scripts
 
-```
-TESTNET_URL=...
-MAINNET_URL=...
+| Command              | What it does                    |
+| -------------------- | ------------------------------- |
+| `pnpm dev`           | Dev server                      |
+| `pnpm build`         | Production build                |
+| `pnpm test`          | Unit and functional tests       |
+| `pnpm test:coverage` | Tests with a V8 coverage report |
+| `pnpm lint`          | ESLint                          |
+| `pnpm typecheck`     | TypeScript                      |
+| `pnpm format:check`  | Prettier                        |
+
+## Tests
+
+Vitest runs two projects: pure logic in Node (formatting, stats, clustering, fetch deadlines, stream math, checkpoint and transaction hubs) and functional tests in jsdom (network races, stream hooks, the worker adapter, navigation and the main pages). Tests use fixtures and never hit a live RPC. CI runs format, lint, typecheck, tests and build on every push.
+
+## Project structure
+
+```text
+app/                 routes and API (RPC proxy, SSE streams)
+features/globe/      worker renderer, markers, inspector, search
+features/dashboard/  overview panels
+features/network/    network snapshot and live streams
+features/validators/ validator data, stats and directory
+features/about/      project page
+lib/                 fetch, stream hubs, formatting
+views/               page composition
+tests/               unit and functional tests
 ```
 
-## Structure
-
-```
-features/     # components grouped by domain (globe, validators, network…)
-views/        # page views
-app/api/      # server-side RPC proxy
-hooks/        # shared hooks
-```
+Validator locations are IP-based estimates. The first globe prototype was inspired by [gmonads.com](https://www.gmonads.com/).

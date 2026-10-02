@@ -1,14 +1,18 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export function CopyButton({
     value,
     label = "Copy value",
+    icon = <Copy size={12} />,
+    className = "copy-button",
 }: {
     value: string;
     label?: string;
+    icon?: ReactNode;
+    className?: string;
 }) {
     const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,7 +34,7 @@ export function CopyButton({
     };
     return (
         <button
-            className="copy-button"
+            className={className}
             aria-label={
                 state === "copied"
                     ? "Copied"
@@ -47,7 +51,7 @@ export function CopyButton({
             }
             onClick={copy}
         >
-            {state === "copied" ? <Check size={12} /> : <Copy size={12} />}
+            {state === "copied" ? <Check size={12} /> : icon}
             <span className="sr-only" role="status">
                 {state === "copied"
                     ? "Copied to clipboard"

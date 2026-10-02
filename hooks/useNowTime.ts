@@ -2,21 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-type Interval = number | "seconds" | "minutes";
-
-function resolveMs(interval: Interval): number {
-    if (interval === "seconds") return 1_000;
-    if (interval === "minutes") return 60_000;
-    return interval;
-}
-
-export function useNowTime(interval: Interval = "seconds"): number {
+/** Current time, re-read every `intervalMs`. */
+export function useNowTime(intervalMs = 1_000): number {
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
-        const id = setInterval(() => setNow(Date.now()), resolveMs(interval));
+        const id = setInterval(() => setNow(Date.now()), intervalMs);
         return () => clearInterval(id);
-    }, [interval]);
+    }, [intervalMs]);
 
     return now;
 }

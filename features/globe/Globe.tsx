@@ -8,34 +8,92 @@ import {
     useRef,
     useState,
 } from "react";
+import { useCheckpointEvents } from "@/features/network/CheckpointStream";
 import { GlobeContext } from "./GlobeContext";
 import { ClusterMarker } from "./ClusterMarker";
 import { clusterValidators, getClusterCellSize } from "./clustering";
+import { attachGlobeInput, type GestureHint } from "./globeInput";
+import { REDUCED_MOTION } from "@/lib/motion";
+import { HOME_VIEW } from "./view";
 import type {
     GlobeController,
+    GlobeFrame,
     MapMode,
     PointOfView,
     WorkerInput,
     WorkerOutput,
 } from "./workerTypes";
 
+export type { GestureHint } from "./globeInput";
+
+type Marker = Extract<WorkerOutput, { type: "frame" }>["markers"][number];
+
+// Panels over the canvas report their size via --globe-inset-* vars.
+function planetFrame(element: HTMLElement): GlobeFrame {
+    const style = getComputedStyle(element);
+    const read = (side: keyof GlobeFrame) => {
+        const value = parseFloat(
+            style.getPropertyValue(`--globe-inset-${side}`)
+        );
+        return Number.isFinite(value) ? value : 0;
+    };
+    return {
+        top: read("top"),
+        right: read("right"),
+        bottom: read("bottom"),
+        left: read("left"),
+    };
+}
+
+function createCanvas(root: HTMLElement) {
+    const canvas = document.createElement("canvas");
+    canvas.className = "globe-worker-canvas";
+    canvas.tabIndex = 0;
+    canvas.setAttribute(
+        "aria-label",
+        "Interactive network map. Drag or use arrow keys to pan. Use plus and minus, or Command and scroll, to zoom. Double-click to zoom in."
+    );
+    root.prepend(canvas);
+    return canvas;
+}
+
+// Only touch the DOM when something changed; even same-value writes
+// invalidate style.
+function placeMarkers(markers: Marker[], nodes: Map<string, HTMLDivElement>) {
+    for (const marker of markers) {
+        const node = nodes.get(marker.id);
+        if (!node) continue;
+        if (node.hidden === marker.visible) {
+            node.hidden = !marker.visible;
+            node.inert = !marker.visible;
+        }
+        if (!marker.visible) continue;
+        const transform = `translate3d(${Math.round(marker.x * 2) / 2}px, ${Math.round(marker.y * 2) / 2}px, 0px)`;
+        if (node.style.transform !== transform)
+            node.style.transform = transform;
+    }
+}
+
 export function Globe({
     onReady,
+    onView,
+    onHint,
     mode = "globe",
-    touchInteractive = false,
 }: {
     onReady?: (controller: GlobeController) => void;
+    // Camera view on each projected frame (~15 Hz).
+    onView?: (view: PointOfView) => void;
+    // A gesture that did nothing, e.g. a plain scroll.
+    onHint?: (hint: GestureHint) => void;
     mode?: MapMode;
-    touchInteractive?: boolean;
 }) {
+    const onCheckpoint = useCheckpointEvents();
     const { onGlobeReady, onGlobeDispose, geoPoints, setAutoRotate } =
         useContext(GlobeContext);
     const rootRef = useRef<HTMLDivElement>(null);
     const workerRef = useRef<Worker | null>(null);
     const markerRefs = useRef(new Map<string, HTMLDivElement>());
     const modeRef = useRef(mode);
-    const touchInteractiveRef = useRef(touchInteractive);
-    const resetGestureRef = useRef<() => void>(() => {});
     const [cell, setCell] = useState(24);
     const [failure, setFailure] = useState<string | null>(null);
     const clusters = useMemo(
@@ -49,11 +107,21 @@ export function Globe({
     });
     const notifyDispose = useEffectEvent(() => onGlobeDispose());
     const stopRotation = useEffectEvent(() => setAutoRotate(false));
+    const reportView = useEffectEvent((view: PointOfView) => onView?.(view));
+    const reportHint = useEffectEvent((hint: GestureHint) => onHint?.(hint));
 
-    useEffect(() => {
-        touchInteractiveRef.current = touchInteractive;
-        resetGestureRef.current();
-    }, [touchInteractive]);
+    // One pulse per fresh checkpoint.
+    useEffect(
+        () =>
+            onCheckpoint((checkpoint) => {
+                if (Date.now() - Number(checkpoint.timestampMs) > 4_000) return;
+                workerRef.current?.postMessage({
+                    type: "pulse",
+                    load: checkpoint.txCount,
+                } satisfies WorkerInput);
+            }),
+        [onCheckpoint]
+    );
 
     useEffect(() => {
         latestData.current = { points: geoPoints, clusters };
@@ -83,41 +151,19 @@ export function Globe({
             );
             return;
         }
-        let disposed = false,
-            worker: Worker | null = null;
-        let firstFrame = 0,
-            secondFrame = 0,
-            canvas: HTMLCanvasElement | null = null;
-        let width = 1,
-            height = 1,
-            inView = true;
-        let view: PointOfView = { lat: 26, lng: 8, altitude: 2.1 };
-        let autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches;
-        const pointers = new Map<number, { x: number; y: number }>();
-        let center: { x: number; y: number } | null = null;
-        let pinchDistance = 0,
-            pinchAltitude = view.altitude;
-        const midpoint = () => {
-            const values = [...pointers.values()];
-            return {
-                x: values.reduce((sum, p) => sum + p.x, 0) / values.length,
-                y: values.reduce((sum, p) => sum + p.y, 0) / values.length,
-            };
-        };
-        const distance = () => {
-            const [a, b] = [...pointers.values()];
-            return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
-        };
-        const resetGesture = () => {
-            for (const id of pointers.keys())
-                if (canvas?.hasPointerCapture?.(id))
-                    canvas.releasePointerCapture(id);
-            pointers.clear();
-            center = null;
-            pinchDistance = 0;
-        };
-        resetGestureRef.current = resetGesture;
+        const media = window.matchMedia(REDUCED_MOTION);
+        let disposed = false;
+        let worker: Worker | null = null;
+        let canvas: HTMLCanvasElement | null = null;
+        let detachInput: (() => void) | null = null;
+        let firstFrame = 0;
+        let secondFrame = 0;
+        let width = 1;
+        let height = 1;
+        let inView = true;
+        let view: PointOfView = { ...HOME_VIEW.globe };
+        let autoRotate = !media.matches;
+
         const post = (message: WorkerInput) => worker?.postMessage(message);
         const controls = {
             get autoRotate() {
@@ -140,6 +186,15 @@ export function Globe({
             controls: () => controls,
             renderer: () => ({ domElement: canvas! }),
         };
+        const updateCell = () =>
+            setCell((previous) => {
+                const next = getClusterCellSize(
+                    view.altitude,
+                    width,
+                    modeRef.current
+                );
+                return previous === next ? previous : next;
+            });
         const resize = () => {
             width = Math.max(1, Math.round(root.clientWidth));
             height = Math.max(1, Math.round(root.clientHeight));
@@ -148,95 +203,27 @@ export function Globe({
                 width,
                 height,
                 pixelRatio: window.devicePixelRatio,
+                frame: planetFrame(root),
             });
             setCell(getClusterCellSize(view.altitude, width, modeRef.current));
         };
         const visibility = () =>
             post({ type: "visibility", visible: inView && !document.hidden });
-        const media = window.matchMedia("(prefers-reduced-motion: reduce)");
         const motion = () => {
             post({ type: "motion", reduced: media.matches });
             if (media.matches) stopRotation();
         };
-        const onPointerDown = (event: PointerEvent) => {
-            if (event.button !== 0 || !canvas) return;
-            if (event.pointerType === "touch" && !touchInteractiveRef.current)
-                return;
-            if (pointers.size >= 2) return;
-            pointers.set(event.pointerId, {
-                x: event.clientX,
-                y: event.clientY,
-            });
-            canvas.setPointerCapture?.(event.pointerId);
-            center = midpoint();
-            pinchDistance = distance();
-            pinchAltitude = view.altitude;
-            stopRotation();
-        };
-        const onPointerMove = (event: PointerEvent) => {
-            if (!pointers.has(event.pointerId) || !center) return;
-            if (event.pointerType === "touch" && !touchInteractiveRef.current) {
-                resetGesture();
-                return;
+        const onMessage = (message: WorkerOutput) => {
+            if (message.type === "ready") {
+                notifyReady(controller);
+                visibility();
             }
-            event.preventDefault();
-            pointers.set(event.pointerId, {
-                x: event.clientX,
-                y: event.clientY,
-            });
-            const next = midpoint();
-            post({
-                type: "drag",
-                dx: next.x - center.x,
-                dy: next.y - center.y,
-            });
-            center = next;
-            const nextDistance = distance();
-            if (pinchDistance > 0 && nextDistance > 0)
-                controller.pointOfView({
-                    altitude: Math.max(
-                        0.55,
-                        Math.min(
-                            5,
-                            (pinchAltitude * pinchDistance) / nextDistance
-                        )
-                    ),
-                });
-        };
-        const onPointerUp = (event: PointerEvent) => {
-            pointers.delete(event.pointerId);
-            if (canvas?.hasPointerCapture?.(event.pointerId))
-                canvas.releasePointerCapture(event.pointerId);
-            center = pointers.size ? midpoint() : null;
-            pinchDistance = 0;
-        };
-        const onKeyDown = (event: KeyboardEvent) => {
-            const steps: Record<string, [number, number]> = {
-                ArrowLeft: [24, 0],
-                ArrowRight: [-24, 0],
-                ArrowUp: [0, 20],
-                ArrowDown: [0, -20],
-            };
-            if (steps[event.key]) {
-                event.preventDefault();
-                stopRotation();
-                post({
-                    type: "drag",
-                    dx: steps[event.key][0],
-                    dy: steps[event.key][1],
-                });
-            }
-            if (["+", "=", "-"].includes(event.key)) {
-                event.preventDefault();
-                controller.pointOfView({
-                    altitude: Math.max(
-                        0.55,
-                        Math.min(
-                            5,
-                            view.altitude * (event.key === "-" ? 1.2 : 0.85)
-                        )
-                    ),
-                });
+            if (message.type === "error") setFailure(message.message);
+            if (message.type === "frame") {
+                view = message.view;
+                reportView(view);
+                updateCell();
+                placeMarkers(message.markers, markerRefs.current);
             }
         };
         const observer = new ResizeObserver(resize);
@@ -247,86 +234,58 @@ export function Globe({
             },
             { rootMargin: "100px" }
         );
-        // Allow the page and its loader to paint before creating the worker.
+
+        const start = () => {
+            canvas = createCanvas(root);
+            width = Math.max(1, root.clientWidth);
+            height = Math.max(1, root.clientHeight);
+            const offscreen = canvas.transferControlToOffscreen();
+            worker = new Worker(new URL("./globe.worker.ts", import.meta.url), {
+                type: "module",
+                name: "iota-network-map",
+            });
+            workerRef.current = worker;
+            worker.onmessage = (event: MessageEvent<WorkerOutput>) => {
+                if (!disposed) onMessage(event.data);
+            };
+            worker.onerror = (event) => {
+                event.preventDefault();
+                if (!disposed)
+                    setFailure("The background map renderer could not start.");
+            };
+            worker.postMessage(
+                {
+                    type: "init",
+                    canvas: offscreen,
+                    width,
+                    height,
+                    pixelRatio: window.devicePixelRatio,
+                    reducedMotion: media.matches,
+                    mode: modeRef.current,
+                    frame: planetFrame(root),
+                } satisfies WorkerInput,
+                [offscreen]
+            );
+            post({ type: "data", ...latestData.current });
+            observer.observe(root);
+            intersection.observe(root);
+            detachInput = attachGlobeInput(root, canvas, {
+                post,
+                altitude: () => view.altitude,
+                setAltitude: (altitude) => controller.pointOfView({ altitude }),
+                stopRotation,
+                hint: reportHint,
+            });
+            document.addEventListener("visibilitychange", visibility);
+            media.addEventListener("change", motion);
+        };
+
+        // Two frames so the page and loader paint before the worker spins up.
         firstFrame = requestAnimationFrame(() => {
             secondFrame = requestAnimationFrame(() => {
                 if (disposed) return;
                 try {
-                    canvas = document.createElement("canvas");
-                    canvas.className = "globe-worker-canvas";
-                    canvas.tabIndex = 0;
-                    canvas.setAttribute(
-                        "aria-label",
-                        "Interactive network map. Drag or use arrow keys to pan. Use plus and minus to zoom."
-                    );
-                    root.prepend(canvas);
-                    width = Math.max(1, root.clientWidth);
-                    height = Math.max(1, root.clientHeight);
-                    const offscreen = canvas.transferControlToOffscreen();
-                    worker = new Worker(
-                        new URL("./globe.worker.ts", import.meta.url),
-                        { type: "module", name: "iota-network-map" }
-                    );
-                    workerRef.current = worker;
-                    worker.onmessage = (event: MessageEvent<WorkerOutput>) => {
-                        if (disposed) return;
-                        const message = event.data;
-                        if (message.type === "ready") {
-                            notifyReady(controller);
-                            visibility();
-                        }
-                        if (message.type === "error")
-                            setFailure(message.message);
-                        if (message.type === "frame") {
-                            view = message.view;
-                            setCell((previous) => {
-                                const next = getClusterCellSize(
-                                    view.altitude,
-                                    width,
-                                    modeRef.current
-                                );
-                                return previous === next ? previous : next;
-                            });
-                            for (const marker of message.markers) {
-                                const node = markerRefs.current.get(marker.id);
-                                if (!node) continue;
-                                node.hidden = !marker.visible;
-                                node.inert = !marker.visible;
-                                if (marker.visible)
-                                    node.style.transform = `translate3d(${marker.x}px, ${marker.y}px, 0)`;
-                            }
-                        }
-                    };
-                    worker.onerror = (event) => {
-                        event.preventDefault();
-                        if (!disposed)
-                            setFailure(
-                                "The background map renderer could not start."
-                            );
-                    };
-                    worker.postMessage(
-                        {
-                            type: "init",
-                            canvas: offscreen,
-                            width,
-                            height,
-                            pixelRatio: window.devicePixelRatio,
-                            reducedMotion: media.matches,
-                            mode: modeRef.current,
-                        } satisfies WorkerInput,
-                        [offscreen]
-                    );
-                    post({ type: "data", ...latestData.current });
-                    observer.observe(root);
-                    intersection.observe(root);
-                    canvas.addEventListener("pointerdown", onPointerDown);
-                    canvas.addEventListener("pointermove", onPointerMove);
-                    canvas.addEventListener("pointerup", onPointerUp);
-                    canvas.addEventListener("pointercancel", onPointerUp);
-                    canvas.addEventListener("lostpointercapture", onPointerUp);
-                    canvas.addEventListener("keydown", onKeyDown);
-                    document.addEventListener("visibilitychange", visibility);
-                    media.addEventListener("change", motion);
+                    start();
                 } catch {
                     setFailure("The background map renderer is unavailable.");
                 }
@@ -340,10 +299,9 @@ export function Globe({
             intersection.disconnect();
             document.removeEventListener("visibilitychange", visibility);
             media.removeEventListener("change", motion);
+            detachInput?.();
             worker?.terminate();
             workerRef.current = null;
-            resetGesture();
-            resetGestureRef.current = () => {};
             canvas?.remove();
             notifyDispose();
         };
@@ -351,11 +309,7 @@ export function Globe({
 
     if (failure) throw new Error(failure);
     return (
-        <div
-            className="globe-worker-stage"
-            ref={rootRef}
-            data-touch-interactive={touchInteractive}
-        >
+        <div className="globe-worker-stage" ref={rootRef}>
             {clusters.map((cluster) => (
                 <div
                     key={cluster.id}
